@@ -338,7 +338,7 @@ class RuleSetClassifier:
                 return False
         return True
     
-    def _simplify(self):
+    def _simplify(self, silent = False):
         """
         Simplify the classifier's rule set by pruning and removing redundant terms.
 
@@ -348,8 +348,8 @@ class RuleSetClassifier:
         3. Further pruning based on probabilistic heuristics.
         4. Removing redundant terms by checking if any term entails another.
 
-        Returns:
-            None
+        Args:
+            silent (bool): Whether to suppress output.
         """
         simplified_rules = []
         for rule in self.rules:
@@ -360,7 +360,7 @@ class RuleSetClassifier:
             simplified_terms = self._prune_terms_using_domain_knowledge(minimize_dnf(terms))
 
             # Step 2. Further pruning based on probabilistic heuristics.
-            for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...'):
+            for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...', disable = silent):
                 simplified_terms[i] = self._prune_term(simplified_terms[i], prediction)
 
             # Step 3. Pruning can cause some of the rules to become redundant. Remove them.
@@ -401,7 +401,7 @@ class RuleSetClassifier:
         
         used_props = feature_selection_using_random_forest(self.X, self.y, num_prop)
         self._form_rule_list(used_props, default_prediction, silent)
-        self._simplify()
+        self._simplify(silent)
         self.is_fitted = True
 
     def evaluate(self, assignment):
