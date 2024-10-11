@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from typing import Any, Tuple
 from scipy.special import betainc
 from scipy.stats import binom
 from rsclassifier.feature_selection import feature_selection_using_decision_tree, feature_selection_using_random_forest
@@ -25,7 +26,7 @@ class RuleSetClassifier:
         self.X = None  # The feature data.
         self.y = None  # The target labels.
 
-    def _booleanize_categorical_features(self, X, categorical_features):
+    def _booleanize_categorical_features(self, X : pd.DataFrame, categorical_features : list) -> pd.DataFrame:
         """
         Convert categorical features into Boolean features.
 
@@ -51,7 +52,7 @@ class RuleSetClassifier:
         local_X.drop(columns=categorical_features, inplace=True)
         return local_X
 
-    def _booleanize_numerical_features(self, X, y, numerical_features):
+    def _booleanize_numerical_features(self, X : pd.DataFrame, y : pd.Series, numerical_features : list) -> pd.DataFrame:
         """
         Discretize numerical features using pivots and convert them into Boolean features.
 
@@ -84,7 +85,7 @@ class RuleSetClassifier:
         local_X.drop(columns=numerical_features, inplace=True)
         return local_X
 
-    def _get_type(self, row):
+    def _get_type(self, row : pd.Series):
         """
         Convert a row into a list of literals representing its type.
 
@@ -103,7 +104,7 @@ class RuleSetClassifier:
         return type
 
     # Loads and preprocesses data into the classifier.
-    def load_data(self, X, y, boolean=[], categorical=[], numerical=[]):
+    def load_data(self, X : pd.DataFrame, y : pd.Series, boolean : list = [], categorical : list = [], numerical : list = []) -> None:
         """
         Load and preprocess the data into the classifier by converting features to Boolean features.
 
@@ -127,7 +128,7 @@ class RuleSetClassifier:
         self.is_initialized = True
         print(f'Total number of Boolean features: {len(self.X.columns)}')
 
-    def _form_rule_list(self, features, default_prediction, silent):
+    def _form_rule_list(self, features : list, default_prediction : Any, silent : bool) -> None:
         """
         Form a list of rules based on the data.
 
@@ -175,7 +176,7 @@ class RuleSetClassifier:
         
         self.rules = list(rules.items())  # Store the rules.
 
-    def _prune_terms_using_domain_knowledge(self, terms):
+    def _prune_terms_using_domain_knowledge(self, terms : list) -> list:
         """
         Prune terms using domain knowledge to simplify them.
 
@@ -215,7 +216,7 @@ class RuleSetClassifier:
             simplified_terms.append(simplified_term)
         return simplified_terms
 
-    def _term_support_and_confidence(self, term, prediction):
+    def _term_support_and_confidence(self, term : list, prediction : Any) -> Tuple[int, int]:
         """
         Calculate the support and confidence for a given term and prediction.
 
@@ -224,7 +225,7 @@ class RuleSetClassifier:
 
         Args:
             term (list): A list of literals.
-            prediction: The predicted value associated with the term.
+            prediction (any): The predicted value associated with the term.
 
         Returns:
             tuple: (t, p)
@@ -245,7 +246,7 @@ class RuleSetClassifier:
 
         return t, p
 
-    def _evaluate_term(self, term, prediction):
+    def _evaluate_term(self, term : list, prediction : Any) -> Tuple[int, float]:
         """
         Evaluate the quality of a given term for a specified prediction by calculating its support and a probabilistic score.
         
@@ -254,7 +255,7 @@ class RuleSetClassifier:
 
         Args:
             term (list): A list of literals.
-            prediction: The predicted label associated with the term.
+            prediction (any): The predicted label associated with the term.
 
         Returns:
             tuple: (t, score)
@@ -276,13 +277,13 @@ class RuleSetClassifier:
             score = 1 - binom.cdf(t, p - 1, P / T)
         return t, score
     
-    def _prune_term(self, term, prediction):
+    def _prune_term(self, term : list, prediction : Any) -> list:
         """
         Prune a given term to remove unnecessary literals using probabilistic evaluation.
 
         Args:
             term (list): A list of literals.
-            prediction: The predicted class label associated with the term.
+            prediction (Any): The predicted class label associated with the term.
 
         Returns:
             list: The pruned term.
@@ -302,7 +303,7 @@ class RuleSetClassifier:
             local_term = best_term
         return local_term
 
-    def _entails(self, term1, term2):
+    def _entails(self, term1 : list, term2 : list) -> bool:
         """
         Check whether term1 entails term2, meaning every condition in term2 is satisfied by term1.
 
@@ -338,7 +339,7 @@ class RuleSetClassifier:
                 return False
         return True
     
-    def _simplify(self, silent = False):
+    def _simplify(self, silent = False) -> None:
         """
         Simplify the classifier's rule set by pruning and removing redundant terms.
 
@@ -380,12 +381,13 @@ class RuleSetClassifier:
 
         self.rules = simplified_rules
 
-    def fit(self, num_prop, feature_selection = 'dt', default_prediction = None, silent = False):
+    def fit(self, num_prop : int, feature_selection : str = 'dt', default_prediction : Any = None, silent : bool = False) -> None:
         """
         Train the RuleSetClassifier by selecting features, forming rules, and simplifying them.
 
         Args:
             num_prop (int): The number of features (properties) to use.
+            feature_selection (str): Either 'dt' or 'rf'.
             default_prediction (any): The default prediction if no rule matches.
             silent (bool): If True, suppress output during training.
 
@@ -409,7 +411,7 @@ class RuleSetClassifier:
         self._simplify(silent)
         self.is_fitted = True
 
-    def evaluate(self, assignment):
+    def evaluate(self, assignment : dict) -> Any:
         """
         Evaluate an input assignment by checking which rule it satisfies.
 
@@ -442,7 +444,7 @@ class RuleSetClassifier:
                     return output
         return self.default_prediction
 
-    def predict(self, X):
+    def predict(self, X : pd.DataFrame) -> pd.Series:
         """
         Predict the class labels for a dataset.
 
@@ -459,7 +461,7 @@ class RuleSetClassifier:
             return self.evaluate(assignment)
         return X.apply(get_prediction, axis=1)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a string representation of the rule set.
 
