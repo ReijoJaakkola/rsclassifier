@@ -25,7 +25,7 @@ class RuleSetClassifier:
         self.X = None  # The feature data.
         self.y = None  # The target labels.
 
-    def booleanize_categorical_features(self, X, categorical_features):
+    def _booleanize_categorical_features(self, X, categorical_features):
         """
         Convert categorical features into Boolean features.
 
@@ -51,7 +51,7 @@ class RuleSetClassifier:
         local_X.drop(columns=categorical_features, inplace=True)
         return local_X
 
-    def booleanize_numerical_features(self, X, y, numerical_features):
+    def _booleanize_numerical_features(self, X, y, numerical_features):
         """
         Discretize numerical features using pivots and convert them into Boolean features.
 
@@ -84,7 +84,7 @@ class RuleSetClassifier:
         local_X.drop(columns=numerical_features, inplace=True)
         return local_X
 
-    def get_type(self, row):
+    def _get_type(self, row):
         """
         Convert a row into a list of literals representing its type.
 
@@ -119,15 +119,15 @@ class RuleSetClassifier:
             for feature in boolean:
                 self.semantics[feature] = ['boolean', feature]
         if len(categorical) > 0:
-            bool_X = self.booleanize_categorical_features(bool_X, categorical)
+            bool_X = self._booleanize_categorical_features(bool_X, categorical)
         if len(numerical) > 0:
-            bool_X = self.booleanize_numerical_features(bool_X, y, numerical)
+            bool_X = self._booleanize_numerical_features(bool_X, y, numerical)
         self.X = bool_X
         self.y = y
         self.is_initialized = True
         print(f'Total number of Boolean features: {len(self.X.columns)}')
 
-    def form_rule_list(self, features, default_prediction, silent):
+    def _form_rule_list(self, features, default_prediction, silent):
         """
         Form a list of rules based on the data.
 
@@ -146,7 +146,7 @@ class RuleSetClassifier:
 
         for index, row in tqdm(local_X.iterrows(), total=len(local_X), desc='Calculating probabilities...', disable=silent):
             # Convert row into a "type".
-            type = self.get_type(row)
+            type = self._get_type(row)
             type_code = hash(str(type))
             if type_code not in type_scores:
                 types.append(type)
@@ -175,7 +175,7 @@ class RuleSetClassifier:
         
         self.rules = list(rules.items())  # Store the rules.
 
-    def prune_terms_using_domain_knowledge(self, terms):
+    def _prune_terms_using_domain_knowledge(self, terms):
         """
         Prune terms using domain knowledge to simplify them.
 
@@ -215,7 +215,7 @@ class RuleSetClassifier:
             simplified_terms.append(simplified_term)
         return simplified_terms
 
-    def term_support_and_confidence(self, term, prediction):
+    def _term_support_and_confidence(self, term, prediction):
         """
         Calculate the support and confidence for a given term and prediction.
 
@@ -245,7 +245,7 @@ class RuleSetClassifier:
 
         return t, p
 
-    def evaluate_term(self, term, prediction):
+    def _evaluate_term(self, term, prediction):
         """
         Evaluate the quality of a given term for a specified prediction by calculating its support and a probabilistic score.
         
@@ -267,7 +267,7 @@ class RuleSetClassifier:
         correct_prediction_mask = (self.y == prediction)
         P = correct_prediction_mask.sum()
 
-        t, p = self.term_support_and_confidence(term, prediction)
+        t, p = self._term_support_and_confidence(term, prediction)
 
         # Calculate the probability that a random rule with the same coverage as term would get at least as good accuracy.
         if t > 12:
@@ -276,7 +276,7 @@ class RuleSetClassifier:
             score = 1 - binom.cdf(t, p - 1, P / T)
         return t, score
     
-    def prune_term(self, term, prediction):
+    def _prune_term(self, term, prediction):
         """
         Prune a given term to remove unnecessary literals using probabilistic evaluation.
 
@@ -289,11 +289,11 @@ class RuleSetClassifier:
         """
         local_term = term.copy()
         while True:
-            lowest_score = self.evaluate_term(local_term, prediction)
+            lowest_score = self._evaluate_term(local_term, prediction)
             best_term = local_term
             for i in range(len(local_term)):
                 reduced_term = local_term[:i] + local_term[i + 1:]  # Avoid deep copy
-                score = self.evaluate_term(reduced_term, prediction)
+                score = self._evaluate_term(reduced_term, prediction)
                 if score < lowest_score:
                     lowest_score = score
                     best_term = reduced_term
@@ -302,7 +302,7 @@ class RuleSetClassifier:
             local_term = best_term
         return local_term
 
-    def entails(self, term1, term2):
+    def _entails(self, term1, term2):
         """
         Check whether term1 entails term2, meaning every condition in term2 is satisfied by term1.
 
@@ -338,7 +338,7 @@ class RuleSetClassifier:
                 return False
         return True
     
-    def simplify(self):
+    def _simplify(self):
         """
         Simplify the classifier's rule set by pruning and removing redundant terms.
 
@@ -357,18 +357,18 @@ class RuleSetClassifier:
             terms = rule[1]
             
             # Step 1. Boolean optimization + domain knowledge.
-            simplified_terms = self.prune_terms_using_domain_knowledge(minimize_dnf(terms))
+            simplified_terms = self._prune_terms_using_domain_knowledge(minimize_dnf(terms))
 
             # Step 2. Further pruning based on probabilistic heuristics.
             for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...'):
-                simplified_terms[i] = self.prune_term(simplified_terms[i], prediction)
+                simplified_terms[i] = self._prune_term(simplified_terms[i], prediction)
 
             # Step 3. Pruning can cause some of the rules to become redundant. Remove them.
             necessary_terms = []
             for i in range(len(simplified_terms)):
                 necessary = True
                 for j in range(i + 1, len(simplified_terms)):
-                    if self.entails(simplified_terms[i], simplified_terms[j]):
+                    if self._entails(simplified_terms[i], simplified_terms[j]):
                         necessary = False
                         break
                 if necessary:
@@ -400,8 +400,8 @@ class RuleSetClassifier:
             num_prop = len(self.X.columns)
         
         used_props = feature_selection_using_random_forest(self.X, self.y, num_prop)
-        self.form_rule_list(used_props, default_prediction, silent)
-        self.simplify()
+        self._form_rule_list(used_props, default_prediction, silent)
+        self._simplify()
         self.is_fitted = True
 
     def evaluate(self, assignment):
@@ -488,7 +488,7 @@ class RuleSetClassifier:
                             output += f'NOT {term[j][1]}'
                     else:
                         output += term[j][1]
-                support, confidence = self.term_support_and_confidence(term, prediction)
+                support, confidence = self._term_support_and_confidence(term, prediction)
                 confidence = confidence / support
                 output += f') {{support: {support}, confidence: {confidence:.2f}}}\n'
             output += f'THEN {rule[0]}\n'
