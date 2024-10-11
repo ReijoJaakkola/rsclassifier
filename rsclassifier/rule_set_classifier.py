@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from scipy.special import betainc
 from scipy.stats import binom
-from rsclassifier.feature_selection import feature_selection_using_random_forest
+from rsclassifier.feature_selection import feature_selection_using_decision_tree, feature_selection_using_random_forest
 from rsclassifier.quine_mccluskey import minimize_dnf
 from rsclassifier.entropy_based_discretization import find_pivots
 
@@ -380,7 +380,7 @@ class RuleSetClassifier:
 
         self.rules = simplified_rules
 
-    def fit(self, num_prop, default_prediction = None, silent = False):
+    def fit(self, num_prop, feature_selection = 'dt', default_prediction = None, silent = False):
         """
         Train the RuleSetClassifier by selecting features, forming rules, and simplifying them.
 
@@ -399,7 +399,12 @@ class RuleSetClassifier:
             print('WARNING: num_prop more than the number of features. All of the features will be used.')
             num_prop = len(self.X.columns)
         
-        used_props = feature_selection_using_random_forest(self.X, self.y, num_prop)
+        if feature_selection == 'dt':
+            used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)
+        elif feature_selection == 'rf':
+            used_props = feature_selection_using_random_forest(self.X, self.y, num_prop)
+        else:
+            raise Error('Invalid feature selection method.')
         self._form_rule_list(used_props, default_prediction, silent)
         self._simplify(silent)
         self.is_fitted = True
