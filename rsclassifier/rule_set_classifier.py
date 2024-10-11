@@ -52,7 +52,7 @@ class RuleSetClassifier:
         local_X.drop(columns=categorical_features, inplace=True)
         return local_X
 
-    def _booleanize_numerical_features(self, X : pd.DataFrame, y : pd.Series, numerical_features : list) -> pd.DataFrame:
+    def _booleanize_numerical_features(self, X : pd.DataFrame, y : pd.Series, numerical_features : list, silent : bool = False) -> pd.DataFrame:
         """
         Discretize numerical features using pivots and convert them into Boolean features.
 
@@ -60,12 +60,13 @@ class RuleSetClassifier:
             X (pandas.DataFrame): The feature data.
             y (pandas.Series): The target labels.
             numerical_features (list): List of numerical features.
+            silent (bool): Whether to suppress output.
 
         Returns:
             pandas.DataFrame: Data with Booleanized numerical features.
         """
         local_X = X.copy()
-        for feature in tqdm(numerical_features, total=len(numerical_features), desc='Discretizing numerical features...'):
+        for feature in tqdm(numerical_features, total=len(numerical_features), desc='Discretizing numerical features...', disable = silent):
             # Combine the feature and target for pivot finding.
             Z = pd.concat([local_X[feature], y], axis=1)
             # Find pivot points for discretization.
@@ -104,7 +105,7 @@ class RuleSetClassifier:
         return type
 
     # Loads and preprocesses data into the classifier.
-    def load_data(self, X : pd.DataFrame, y : pd.Series, boolean : list = [], categorical : list = [], numerical : list = []) -> None:
+    def load_data(self, X : pd.DataFrame, y : pd.Series, boolean : list = [], categorical : list = [], numerical : list = [], silent : bool = False) -> None:
         """
         Load and preprocess the data into the classifier by converting features to Boolean features.
 
@@ -114,6 +115,7 @@ class RuleSetClassifier:
             boolean (list): List of Boolean features.
             categorical (list): List of categorical features.
             numerical (list): List of numerical features.
+            silent (bool): Whether to suppress output.
         """
         bool_X = X.copy()
         if len(boolean) > 0:
@@ -122,11 +124,12 @@ class RuleSetClassifier:
         if len(categorical) > 0:
             bool_X = self._booleanize_categorical_features(bool_X, categorical)
         if len(numerical) > 0:
-            bool_X = self._booleanize_numerical_features(bool_X, y, numerical)
+            bool_X = self._booleanize_numerical_features(bool_X, y, numerical, silent)
         self.X = bool_X
         self.y = y
         self.is_initialized = True
-        print(f'Total number of Boolean features: {len(self.X.columns)}')
+        if not silent:
+            print(f'Total number of Boolean features: {len(self.X.columns)}')
 
     def _form_rule_list(self, features : list, default_prediction : Any, silent : bool) -> None:
         """
