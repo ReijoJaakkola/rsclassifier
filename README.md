@@ -1,5 +1,10 @@
 # rsclassifier
 
+[![Python Version](https://img.shields.io/badge/python-3.6%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://pepy.tech/badge/rsclassifier)](https://pepy.tech/project/rsclassifier)
+[![GitHub](https://img.shields.io/badge/GitHub-Repo-blue.svg)](https://github.com/ReijoJaakkola/rsclassifier)
+
 ### Overview
 
 This package consist of the module `rsclassifier` which contains the class `RuleSetClassifier`.
