@@ -249,7 +249,7 @@ class RuleSetClassifier:
 
         return t, p
 
-    def _evaluate_term(self, term : list, prediction : Any) -> Tuple[int, float]:
+    def _evaluate_term(self, term : list, prediction : Any) -> float:
         """
         Evaluate the quality of a given term for a specified prediction by calculating its support and a probabilistic score.
         
@@ -261,9 +261,7 @@ class RuleSetClassifier:
             prediction (any): The predicted label associated with the term.
 
         Returns:
-            tuple: (t, score)
-                - t (int): The number of rows where the term is satisfied (support).
-                - score (float): A score indicating how likely a random rule would match the performance of the term.
+            float: A score indicating how likely a random rule would match the performance of the term.
         """
         T = len(self.X)
         
@@ -278,7 +276,8 @@ class RuleSetClassifier:
             score = betainc(p, t - p + 1, P / T)
         else:
             score = 1 - binom.cdf(t, p - 1, P / T)
-        return t, score
+
+        return score
     
     def _prune_term(self, term : list, prediction : Any) -> list:
         """
