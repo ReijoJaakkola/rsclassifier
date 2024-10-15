@@ -10,7 +10,7 @@ Term: A list of literals, representing a conjunction of literals (e.g., [p1, p2,
 This code aims to minimize a Disjunctive Normal Form (DNF) expression using prime implicants.
 '''
 
-def terms_match(term1, term2):
+def terms_match(term1 : list, term2 : list) -> int:
     """
     Compare two terms to see if they differ by exactly one literal (complement).
     - If two terms differ in more than one literal, they do not match.
@@ -36,7 +36,7 @@ def terms_match(term1, term2):
     
     return complement_found  # Return the index of the complement, or -1 if no match.
 
-def find_prime_implicants(terms):
+def find_prime_implicants(terms : list) -> list:
     """
     Find all prime implicants by combining terms that differ by one literal (complements).
     
@@ -78,7 +78,7 @@ def find_prime_implicants(terms):
 
     return prime_implicants
 
-def issubset(implicant, term):
+def issubset(implicant : list, term : list) -> bool:
     """
     Check if an implicant is a subset of a term.
     
@@ -94,7 +94,7 @@ def issubset(implicant, term):
             return False
     return True
 
-def find_sufficient_implicants(terms, implicants):
+def find_sufficient_implicants(terms : list, implicants : list) -> list:
     """
     Find a minimal set of implicants that cover all the terms (i.e., sufficient implicants).
     
@@ -134,7 +134,7 @@ def find_sufficient_implicants(terms, implicants):
 
     return sufficient_implicants
 
-def minimize_dnf(terms):
+def minimize_dnf(terms : list) -> list:
     """
     Minimize a Disjunctive Normal Form (DNF) expression by finding sufficient implicants.
     
