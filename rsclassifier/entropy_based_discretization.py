@@ -1,7 +1,9 @@
 import numpy as np
+import pandas as pd
 from rsclassifier.information_theory import information
+from typing import Tuple
 
-def calculate_midpoints(numbers):
+def calculate_midpoints(numbers : np.ndarray) -> np.ndarray:
     """
     Calculate midpoints between sorted numbers.
     
@@ -14,7 +16,7 @@ def calculate_midpoints(numbers):
     sorted_numbers = np.sort(numbers)
     return (sorted_numbers[:-1] + sorted_numbers[1:]) / 2
 
-def minimum_information_gain(num_rows, entropy, entropy1, entropy2, unique_targets, unique_targets1, unique_targets2):
+def minimum_information_gain(num_rows : int, entropy : float, entropy1 : float, entropy2 : float, unique_targets : int, unique_targets1 : int, unique_targets2 : int) -> float:
     """
     Calculate the minimum information gain.
     
@@ -33,7 +35,7 @@ def minimum_information_gain(num_rows, entropy, entropy1, entropy2, unique_targe
     return (np.log2(num_rows - 1) / num_rows) + ((np.log2(3 ** unique_targets - 2) - unique_targets * entropy 
              + unique_targets1 * entropy1 + unique_targets2 * entropy2) / num_rows)
 
-def split_data_by_pivot(dataframe, feature, pivot):
+def split_data_by_pivot(dataframe : pd.DataFrame, feature : str, pivot : float) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Split dataframe into two subsets based on a pivot value for the feature.
     
@@ -49,7 +51,7 @@ def split_data_by_pivot(dataframe, feature, pivot):
     df_lesser_equal = dataframe[dataframe[feature] <= pivot]
     return df_greater, df_lesser_equal
 
-def find_best_pivot(dataframe, feature, target, pivot_candidates, N, information_upper_bound):
+def find_best_pivot(dataframe : pd.DataFrame, feature : str, target : str, pivot_candidates : np.ndarray, N : int, information_upper_bound : float) -> Tuple[float,float]:
     """
     Find the best pivot based on the smallest information value.
 
@@ -81,7 +83,7 @@ def find_best_pivot(dataframe, feature, target, pivot_candidates, N, information
 
     return best_pivot, smallest_information_value
 
-def find_pivots(dataframe):
+def find_pivots(dataframe : pd.DataFrame) -> list:
     """
     Find the pivots that minimize the information gain for splitting the data.
 
