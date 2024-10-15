@@ -1,6 +1,7 @@
+import pandas as pd
 import numpy as np
 
-def entropy_logarithm(p):
+def entropy_logarithm(p : float) -> float:
     """
     Compute the logarithmic component of the entropy for a given probability value.
 
@@ -12,26 +13,24 @@ def entropy_logarithm(p):
     """
     return (-1) * p * np.log2(p) if p != 0 else 0
 
-def entropy(p):
+def entropy(p : list) -> float:
     """
     Calculate the entropy for a distribution of probabilities.
 
     Args:
-        p (array-like): A list, NumPy array, or iterable of probability values (each between 0 and 1, inclusive).
+        p list: A probability distribution.
 
     Returns:
         float: The computed entropy of the distribution.
     """
     return np.sum([entropy_logarithm(prob) for prob in p])
 
-def information(y):
+def information(y : pd.Series) -> float:
     """
     Calculates the information content of the target variable `y`.
 
     Args:
-        y (pandas.Series): A Pandas Series representing the target variable whose entropy is to be calculated. Each unique 
-                           value in the series corresponds to a class label, and the function calculates the proportion of 
-                           each class to compute entropy.
+        y (pandas.Series): A Pandas Series representing the target variable whose entropy is to be calculated.
 
     Returns:
         float: The computed entropy (information content) for the target variable `y`.
