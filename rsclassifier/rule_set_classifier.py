@@ -348,7 +348,7 @@ class RuleSetClassifier:
         The simplification process involves three main steps:
         1. Boolean optimization using the Quine-McCluskey algorithm.
         2. Domain-specific pruning. E.g. (x > 7 AND x > 6) is equivalent with (x > 7).
-        3. Further pruning based on probabilistic heuristics.
+        3. Further pruning based on statistical significance.
         4. Removing redundant terms by checking if any term entails another.
 
         Args:
@@ -359,14 +359,17 @@ class RuleSetClassifier:
             prediction = rule[0]
             terms = rule[1]
             
-            # Step 1. Boolean optimization + domain knowledge.
-            simplified_terms = self._prune_terms_using_domain_knowledge(minimize_dnf(terms))
+            # Step 1. Boolean optimization.
+            simplified_terms = minimize_dnf(terms)
 
-            # Step 2. Further pruning based on probabilistic heuristics.
+            # Step 2. Domain knowledge.
+            simplified_terms = self._prune_terms_using_domain_knowledge(simplified_terms)
+
+            # Step 3. Pruning based on statistical significance.
             for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...', disable = silent):
                 simplified_terms[i] = self._prune_term(simplified_terms[i], prediction)
 
-            # Step 3. Pruning can cause some of the rules to become redundant. Remove them.
+            # Step 4. Pruning can cause some of the rules to become redundant. Remove them.
             necessary_terms = []
             for i in range(len(simplified_terms)):
                 necessary = True
