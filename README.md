@@ -56,6 +56,14 @@ Let `rsc` be an instance of `RuleSetClassifier` and let `X` be a pandas datafram
 
 **Note**: At present, `RuleSetClassifier` does not support datasets with missing values. You will need to preprocess your data (e.g., removing missing values) before using the classifier.
 
+## Installation
+
+To install the package, you can use `pip`:
+
+```bash
+pip install rsclassifier
+```
+
 ### Background
 
 The rule learning method implemented by `RuleSetClassifier` was inspired by and extends the approach taken in the [paper](https://arxiv.org/abs/2402.05680), which we refer here as the **ideal DNF-method**. The ideal DNF-method goes as follows. First, the input data is Booleanized. Then, a small number of promising features is selected. Finally, a DNF-formula is computed for those promising features for which the number of misclassified points is as small as possible.
@@ -63,7 +71,7 @@ The rule learning method implemented by `RuleSetClassifier` was inspired by and 
 The way `RuleSetClassifier` extends and modifies the ideal DNF-method is mainly as follows.
 - We use an entropy-based Booleanization for numerical features with minimum description length principle working as a stopping rule.
 - `RuleSetClassifier` is not restricted to binary classification tasks.
-- We implement rule pruning as a postprocessing step. This is important, as it makes the rules shorter (and hence more interpretable), but it also leads to gains in accuracy.
+- We implement rule pruning as a postprocessing step. This is important, as it makes the rules shorter and hence more interpretable.
 
 ### Example
 
