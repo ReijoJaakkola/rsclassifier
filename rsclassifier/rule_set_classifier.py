@@ -374,9 +374,6 @@ class RuleSetClassifier:
             random_state (int): Controls the shuffling applied to the data before applying the split.
             default_prediction (any): The default prediction if no rule matches.
             silent (bool): If True, suppress output during training.
-
-        Returns:
-            None
         """
         if not self.is_initialized:
             raise Error('Data has not been loaded.')
