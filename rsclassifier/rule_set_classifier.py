@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from typing import Any, Tuple
-from scipy.special import betainc
-from scipy.stats import binom
+from sklearn.model_selection import train_test_split
 from rsclassifier.feature_selection import feature_selection_using_decision_tree, feature_selection_using_random_forest
 from rsclassifier.quine_mccluskey import minimize_dnf
 from rsclassifier.entropy_based_discretization import find_pivots
@@ -25,6 +24,12 @@ class RuleSetClassifier:
 
         self.X = None  # The feature data.
         self.y = None  # The target labels.
+
+        self.X_grow = None
+        self.y_grow = None
+
+        self.X_prune = None
+        self.y_prune = None
 
     def _booleanize_categorical_features(self, X : pd.DataFrame, categorical_features : list) -> pd.DataFrame:
         """
@@ -141,7 +146,7 @@ class RuleSetClassifier:
             silent (bool): Whether to suppress output.
         """
         self.rules = []
-        local_X = self.X[features]
+        local_X = self.X_grow[features]
         
         # Track unique types and scores for each type.
         types = []
@@ -156,7 +161,7 @@ class RuleSetClassifier:
                 types.append(type)
                 type_scores[type_code] = {v: 0 for v in unique_y}
             # Increment score for the correct label.
-            type_scores[type_code][self.y.loc[index]] += 1
+            type_scores[type_code][self.y_grow.loc[index]] += 1
 
         # Determine the default prediction if not specified.
         if default_prediction is None:
@@ -218,70 +223,32 @@ class RuleSetClassifier:
                 simplified_term.append([1, f'{feature} > {lower_bounds[feature]:.2f}'])
             simplified_terms.append(simplified_term)
         return simplified_terms
-
-    def _term_support_and_confidence(self, term : list, prediction : Any) -> Tuple[int, int]:
+    
+    def _evaluate_term_using_cross_validation(self, term : list, prediction : Any) -> float:
         """
-        Calculate the support and confidence for a given term and prediction.
-
-        Support: The number of rows (instances) where the term is true.
-        Confidence: The number of rows where the term is true and the prediction matches the actual target value.
+        Evaluate the accuracy of a given term using cross-validation.
 
         Args:
             term (list): A list of literals.
-            prediction (any): The predicted value associated with the term.
+            prediction (Any): The predicted class label associated with the term.
 
         Returns:
-            tuple: (t, p)
-                - t (int): The number of rows where the term is satisfied (support).
-                - p (int): The number of rows where the term is satisfied, and the prediction matches the actual target value (confidence).
+            float: The accuracy of the term, calculated as the ratio of correct predictions made by 
+                   the term to the total number of instances covered by the term. Returns 0.0 if the 
+                   term covers no instances.
         """
-        # Identify rows where the prediction is correct
-        correct_prediction_mask = (self.y == prediction)
-
-        # Check whether each row satisfies the term
-        term_mask = np.ones(len(self.X), dtype = bool)
+        term_mask = np.ones(len(self.X_prune), dtype = bool)
         for literal in term:
-            term_mask &= (self.X[literal[1]] == literal[0])
-
-        # Number of rows where term is true (t) and correct prediction (p)
-        t = term_mask.sum()
-        p = (term_mask & correct_prediction_mask).sum()
-
-        return t, p
-
-    def _evaluate_term(self, term : list, prediction : Any) -> float:
-        """
-        Evaluate the quality of a given term for a specified prediction by calculating its support and a probabilistic score.
-        
-        The score represents how likely it is that a random rule with the same coverage would achieve at least the same 
-        accuracy as the term in question.
-
-        Args:
-            term (list): A list of literals.
-            prediction (any): The predicted label associated with the term.
-
-        Returns:
-            float: A score indicating how likely a random rule would match the performance of the term.
-        """
-        T = len(self.X)
-        
-        # Identify rows where the prediction is correct
-        correct_prediction_mask = (self.y == prediction)
-        P = correct_prediction_mask.sum()
-
-        t, p = self._term_support_and_confidence(term, prediction)
-
-        # Calculate the probability that a random rule with the same coverage as term would get at least as good accuracy.
-        if t > 12:
-            score = betainc(p, t - p + 1, P / T)
+            term_mask &= (self.X_prune[literal[1]] == literal[0])
+        sum = (term_mask).sum()
+        if sum == 0:
+            return 0.0
         else:
-            score = 1 - binom.cdf(t, p - 1, P / T)
-
-        return score
+            return (term_mask & (self.y_prune == prediction)).sum() / sum
     
     def _prune_term(self, term : list, prediction : Any) -> list:
         """
-        Prune a given term to remove unnecessary literals using probabilistic evaluation.
+        Prune a given term to remove unnecessary literals.
 
         Args:
             term (list): A list of literals.
@@ -292,13 +259,13 @@ class RuleSetClassifier:
         """
         local_term = term.copy()
         while True:
-            lowest_score = self._evaluate_term(local_term, prediction)
+            highest_score = self._evaluate_term_using_cross_validation(local_term, prediction)
             best_term = local_term
             for i in range(len(local_term)):
                 reduced_term = local_term[:i] + local_term[i + 1:]  # Avoid deep copy
-                score = self._evaluate_term(reduced_term, prediction)
-                if score < lowest_score:
-                    lowest_score = score
+                score = self._evaluate_term_using_cross_validation(reduced_term, prediction)
+                if score > highest_score:
+                    highest_score = score
                     best_term = reduced_term
             if best_term == local_term:
                 break
@@ -348,7 +315,7 @@ class RuleSetClassifier:
         The simplification process involves three main steps:
         1. Boolean optimization using the Quine-McCluskey algorithm.
         2. Domain-specific pruning. E.g. (x > 7 AND x > 6) is equivalent with (x > 7).
-        3. Further pruning based on statistical significance.
+        3. Further pruning based on cross validation.
         4. Removing redundant terms by checking if any term entails another.
 
         Args:
@@ -365,34 +332,46 @@ class RuleSetClassifier:
             # Step 2. Domain knowledge.
             simplified_terms = self._prune_terms_using_domain_knowledge(simplified_terms)
 
-            # Step 3. Pruning based on statistical significance.
-            for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...', disable = silent):
-                simplified_terms[i] = self._prune_term(simplified_terms[i], prediction)
+            # Step 3. Pruning based on cross validation.
+            if self.X_prune is not None:
+                for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...', disable = silent):
+                    simplified_terms[i] = self._prune_term(simplified_terms[i], prediction)
 
-            # Step 4. Pruning can cause some of the rules to become redundant. Remove them.
-            necessary_terms = []
-            for i in range(len(simplified_terms)):
-                necessary = True
-                for j in range(i + 1, len(simplified_terms)):
-                    if self._entails(simplified_terms[i], simplified_terms[j]):
-                        necessary = False
-                        break
-                if necessary:
-                    necessary_terms.append(simplified_terms[i])
+                # Step 4. Pruning can cause some of the rules to become redundant. Remove them.
+                 # TODO: Pruning can also lead to conflicts between rules. Is this a problem?
+                necessary_terms = []
+                for i in range(len(simplified_terms)):
+                    necessary = True
+                    for j in range(i + 1, len(simplified_terms)):
+                        if self._entails(simplified_terms[i], simplified_terms[j]):
+                            necessary = False
+                            break
+                    if necessary:
+                        necessary_terms.append(simplified_terms[i])
             
-            simplified_rules.append([prediction, necessary_terms])
-
-        # TODO: Pruning can also lead to conflicts between rules. Is this a problem?
+                simplified_rules.append([prediction, necessary_terms])
+            else:
+                simplified_rules.append([prediction, simplified_terms])
 
         self.rules = simplified_rules
 
-    def fit(self, num_prop : int, feature_selection : str = 'dt', default_prediction : Any = None, silent : bool = False) -> None:
+    def fit(
+            self, 
+            num_prop : int, 
+            feature_selection : str = 'dt', 
+            growth_size : float = 2/3, 
+            random_state : int = 42, 
+            default_prediction : Any = None, 
+            silent : bool = False
+        ) -> None:
         """
         Train the RuleSetClassifier by selecting features, forming rules, and simplifying them.
 
         Args:
             num_prop (int): The number of features (properties) to use.
             feature_selection (str): Either 'dt' or 'rf'.
+            growth_size (float): Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split.
+            random_state (int): Controls the shuffling applied to the data before applying the split.
             default_prediction (any): The default prediction if no rule matches.
             silent (bool): If True, suppress output during training.
 
@@ -401,6 +380,9 @@ class RuleSetClassifier:
         """
         if not self.is_initialized:
             raise Error('Data has not been loaded.')
+        
+        if growth_size <= 0.0 or growth_size > 1.0:
+            raise Error('growth_size needs to be in the range (0,1].')
         
         if num_prop > len(self.X.columns):
             print('WARNING: num_prop more than the number of features. All of the features will be used.')
@@ -412,6 +394,17 @@ class RuleSetClassifier:
             used_props = feature_selection_using_random_forest(self.X, self.y, num_prop)
         else:
             raise Error('Invalid feature selection method.')
+        
+        if growth_size == 1.0:
+            self.X_grow = self.X
+            self.y_grow = self.y
+        else:
+            X_grow, X_prune, y_grow, y_prune = train_test_split(self.X, self.y, test_size = growth_size, random_state = random_state)
+            self.X_grow = X_grow
+            self.X_prune = X_prune
+            self.y_grow = y_grow
+            self.y_prune = y_prune
+
         self._form_rule_list(used_props, default_prediction, silent)
         self._simplify(silent)
         self.is_fitted = True
@@ -465,6 +458,36 @@ class RuleSetClassifier:
             assignment = row.to_dict()
             return self.evaluate(assignment)
         return X.apply(get_prediction, axis=1)
+    
+    def _term_support_and_confidence(self, term : list, prediction : Any) -> Tuple[int, float]:
+        """
+        Calculate the support and confidence for a given term and prediction.
+
+        Support: The number of data points that satisfy the rule.
+        Confidence: The probability that a data point satisfying the rule is correctly classified.
+
+        Args:
+            term (list): A list of literals.
+            prediction (any): The predicted value associated with the term.
+
+        Returns:
+            tuple: (t, p)
+                - t (int): support
+                - p (float): confidence
+        """
+        # Identify rows where the prediction is correct
+        correct_prediction_mask = (self.y == prediction)
+
+        # Check whether each row satisfies the term
+        term_mask = np.ones(len(self.X), dtype = bool)
+        for literal in term:
+            term_mask &= (self.X[literal[1]] == literal[0])
+
+        # Number of rows where term is true (t) and correct prediction (p)
+        t = term_mask.sum()
+        p = (term_mask & correct_prediction_mask).sum()
+
+        return t, p/t
 
     def __str__(self) -> str:
         """
@@ -501,7 +524,6 @@ class RuleSetClassifier:
                     else:
                         output += term[j][1]
                 support, confidence = self._term_support_and_confidence(term, prediction)
-                confidence = confidence / support
                 output += f') {{support: {support}, confidence: {confidence:.2f}}}\n'
             output += f'THEN {rule[0]}\n'
         output += f'ELSE {self.default_prediction}\n'
