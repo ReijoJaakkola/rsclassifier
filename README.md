@@ -12,17 +12,12 @@ This package consist of the module `rsclassifier` which contains the class `Rule
 `RuleSetClassifier` is a non-parametric supervised learning method that can be used for classification and data mining. As the name suggests, `RuleSetClassifier` produces classifiers which consist of a set of rules which are learned from the given data. As a concrete example, the following classifier was produced from the well-known Iris data set.
 
 **IF**  
-**(petal_length_in_cm > 2.35 AND petal_width_in_cm > 1.75) {support: 24, confidence: 0.96}**  
+**(petal_length_in_cm > 2.45 AND petal_width_in_cm > 1.75) {support: 33, confidence: 0.97}**  
 **THEN virginica**  
 **ELSE IF**  
-**(petal_length_in_cm <= 2.35 AND petal_width_in_cm <= 1.75) {support: 21, confidence: 1.0}**  
+**(petal_length_in_cm <= 2.45 AND petal_width_in_cm <= 1.75) {support: 31, confidence: 1.00}**  
 **THEN setosa**  
 **ELSE versicolor**  
-
-The above classifier works as follows.
-- Every instance for which petal length was greater than 2.35cm and petal width was greater than 1.75cm is classified as virginica.
-- Every instance for which petal length was at most 2.35cm and petal width was at most 1.75cm is classified as setosa.
-- Every other instance is classified as versicolor.
 
 Notice that each rule is accompanied by:
 - **Support**: The number of data points that satisfy the rule.
@@ -31,26 +26,27 @@ Notice that each rule is accompanied by:
 As an another concrete example, the following classifier was produced from the Breast Cancer Wisconsin data set.
 
 **IF**  
-**(uniformity_of_cell_size > 3.50) {support: 168, confidence: 0.95}**  
-**OR (bare_nuclei > 2.50 AND bland_chromatin > 3.50) {support: 142, confidence: 0.96}**  
-**OR (bare_nuclei > 2.50 AND uniformity_of_cell_size > 2.50) {support: 168, confidence: 0.93}**  
-**OR (uniformity_of_cell_shape > 3.50 AND uniformity_of_cell_size > 2.50) {support: 173, confidence: 0.94}**  
+**(bare_nuclei > 2.50 AND clump_thickness > 4.50) {support: 134, confidence: 0.94}**  
+**OR (uniformity_of_cell_size > 3.50) {support: 150, confidence: 0.94}**  
+**OR (bare_nuclei > 5.50) {support: 119, confidence: 0.97}**  
 **THEN 4**  
 **ELSE 2**  
 
 This classifier classifiers all tumors which satisfy one of the four rules listed above as malign (4) and all other tumors as benign (2).
 
 ### Advantages
-- `RuleSetClassifier` produces extremely interpretable and transparent classifiers. This makes it ideal for exploratory data analysis. 
-- It is very easy to use, since it has only one hyperparameter, namely an upper bound on the total number of proposition symbols that occur in the rules.
+- `RuleSetClassifier` produces extremely interpretable and transparent classifiers.
+- It is very easy to use, as it has only two hyperparameters.
 - It can handle both categorical and numerical data.
 - The learning process is very fast.
 
 ### How to use `RuleSetClassifier`
 
 Let `rsc` be an instance of `RuleSetClassifier` and let `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
-- **Load the data**: Use `rsc.load_data(X, y, categorical, numerical)` where `categorical` and `numerical` are lists specifying which features in `X` are categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store is to `rsc`.
-- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop)`, where `num_prop` is the upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`.
+- **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store is to `rsc`.
+- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The two hyperparameters `num_prop` and `growth_size` work as follows.
+    - `num_prop` is an upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy. 
+    - `growth_size` is a float in the range (0, 1], determining the proportion of X used for learning rules. The remaining portion is used for pruning. If `growth_size` is set to 1, no pruning is performed. Default value is 2/3 and this seems to work quite well in practice.
 - **Make predictions**: Use `rsc.predict(X)` to generate predictions. This function returns a pandas Series.
 - **Visualize the classifier**: Simply print the classifier to visualize the learned rules (together with their support and confidence).
 
