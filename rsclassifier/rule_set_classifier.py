@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import Any, Tuple
 from sklearn.model_selection import train_test_split
-from rsclassifier.feature_selection import feature_selection_using_decision_tree, feature_selection_using_random_forest
+from rsclassifier.feature_selection import feature_selection_using_decision_tree
 from rsclassifier.quine_mccluskey import minimize_dnf
 from rsclassifier.entropy_based_discretization import find_pivots
 
@@ -356,12 +356,11 @@ class RuleSetClassifier:
         self.rules = simplified_rules
 
     def fit(
-            self, 
-            num_prop : int, 
-            feature_selection : str = 'dt', 
-            growth_size : float = 2/3, 
-            random_state : int = 42, 
-            default_prediction : Any = None, 
+            self,
+            num_prop : int,
+            growth_size : float = 2/3,
+            random_state : int = 42,
+            default_prediction : Any = None,
             silent : bool = False
         ) -> None:
         """
@@ -369,7 +368,6 @@ class RuleSetClassifier:
 
         Args:
             num_prop (int): The number of features (properties) to use.
-            feature_selection (str): Either 'dt' or 'rf'.
             growth_size (float): Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split.
             random_state (int): Controls the shuffling applied to the data before applying the split.
             default_prediction (any): The default prediction if no rule matches.
@@ -385,12 +383,7 @@ class RuleSetClassifier:
             print('WARNING: num_prop more than the number of features. All of the features will be used.')
             num_prop = len(self.X.columns)
         
-        if feature_selection == 'dt':
-            used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)
-        elif feature_selection == 'rf':
-            used_props = feature_selection_using_random_forest(self.X, self.y, num_prop)
-        else:
-            raise Error('Invalid feature selection method.')
+        used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)
         
         if growth_size == 1.0:
             self.X_grow = self.X
