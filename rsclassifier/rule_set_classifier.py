@@ -358,7 +358,7 @@ class RuleSetClassifier:
     def fit(
             self,
             num_prop : int,
-            growth_size : float = 2/3,
+            growth_size : float = 1.0,
             random_state : int = 42,
             default_prediction : Any = None,
             silent : bool = False
@@ -368,7 +368,7 @@ class RuleSetClassifier:
 
         Args:
             num_prop (int): The number of features (properties) to use.
-            growth_size (float): Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split.
+            growth_size (float): Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split. If equal to 1.0 (the default value), no pruning will be done.
             random_state (int): Controls the shuffling applied to the data before applying the split.
             default_prediction (any): The default prediction if no rule matches.
             silent (bool): If True, suppress output during training.
