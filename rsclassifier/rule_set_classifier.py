@@ -91,24 +91,6 @@ class RuleSetClassifier:
         local_X.drop(columns=numerical_features, inplace=True)
         return local_X
 
-    def _get_type(self, row : pd.Series):
-        """
-        Convert a row into a list of literals representing its type.
-
-        Args:
-            row (pandas.Series): A row of feature data.
-
-        Returns:
-            list: A list of literals representing the type.
-        """
-        type = []
-        for atom in row.keys():
-            if row[atom] == True:
-                type.append([1, atom])
-            else:
-                type.append([0, atom])
-        return type
-
     # Loads and preprocesses data into the classifier.
     def load_data(self, X : pd.DataFrame, y : pd.Series, boolean : list = [], categorical : list = [], numerical : list = [], silent : bool = False) -> None:
         """
@@ -136,9 +118,27 @@ class RuleSetClassifier:
         if not silent:
             print(f'Total number of Boolean features: {len(self.X.columns)}')
 
+    def _get_type(self, row : pd.Series) -> list:
+        """
+        Convert a row into a list of literals representing its type.
+
+        Args:
+            row (pandas.Series): A row of feature data.
+
+        Returns:
+            list: A list of literals representing the type.
+        """
+        type = []
+        for atom in row.keys():
+            if row[atom] == True:
+                type.append([1, atom])
+            else:
+                type.append([0, atom])
+        return type
+
     def _form_rule_set(self, features : list, default_prediction : Any, silent : bool) -> None:
         """
-        Form a list of rules based on the data.
+        Form a set of rules based on the data.
 
         Args:
             features (list): List of features to use.
