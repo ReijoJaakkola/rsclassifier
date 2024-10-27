@@ -136,7 +136,7 @@ class RuleSetClassifier:
         if not silent:
             print(f'Total number of Boolean features: {len(self.X.columns)}')
 
-    def _form_rule_list(self, features : list, default_prediction : Any, silent : bool) -> None:
+    def _form_rule_set(self, features : list, default_prediction : Any, silent : bool) -> None:
         """
         Form a list of rules based on the data.
 
@@ -397,7 +397,7 @@ class RuleSetClassifier:
             self.y_grow = y_grow
             self.y_prune = y_prune
 
-        self._form_rule_list(used_props, default_prediction, silent)
+        self._form_rule_set(used_props, default_prediction, silent)
         self._simplify(silent)
         self.is_fitted = True
 
