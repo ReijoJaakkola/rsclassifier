@@ -387,7 +387,9 @@ class RuleSetClassifier:
         
         if growth_size == 1.0:
             self.X_grow = self.X
+            self.X_prune = None
             self.y_grow = self.y
+            self.y_prune = None
         else:
             X_grow, X_prune, y_grow, y_prune = train_test_split(self.X, self.y, test_size = growth_size, random_state = random_state)
             self.X_grow = X_grow
