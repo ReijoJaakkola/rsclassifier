@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from rsclassifier.information_theory import information
+from discretization.information_theory import information
 from typing import Tuple
 
 def calculate_midpoints(numbers : np.ndarray) -> np.ndarray:
@@ -83,21 +83,23 @@ def find_best_pivot(dataframe : pd.DataFrame, feature : str, target : str, pivot
 
     return best_pivot, smallest_information_value
 
-def find_pivots(dataframe : pd.DataFrame) -> list:
+def find_pivots(x : pd.Series, y : pd.Series) -> list:
     """
-    Find the pivots that minimize the information gain for splitting the data.
+    Find optimal pivot points for splitting data based on information gain.
 
     Args:
-        dataframe (pandas.DataFrame): Input dataframe with feature and target.
+        x (pandas.Series): Feature values for the pivot search.
+        y (pandas.Series): Target variable values corresponding to feature `x`.
 
     Returns:
-        list: List of pivot values.
+        list: List of pivot points that yield significant information gain.
     """
-    feature = dataframe.columns[0]
-    target = dataframe.columns[1]
-    information_upper_bound = np.log2(len(dataframe[target].unique())) + 1
+    z = pd.concat([x,y], axis = 1)
+    feature = z.columns[0]
+    target = z.columns[1]
+    information_upper_bound = np.log2(len(z[target].unique())) + 1
     pivots = []
-    stack = [dataframe]
+    stack = [z]
 
     while stack:
         z = stack.pop()

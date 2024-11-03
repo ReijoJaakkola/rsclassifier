@@ -3,9 +3,9 @@ import numpy as np
 from tqdm import tqdm
 from typing import Any, Tuple
 from sklearn.model_selection import train_test_split
+from discretization.entropy_based_discretization import find_pivots
 from rsclassifier.feature_selection import feature_selection_using_decision_tree
 from rsclassifier.quine_mccluskey import minimize_dnf
-from rsclassifier.entropy_based_discretization import find_pivots
 
 class Error(Exception):
     pass
@@ -72,10 +72,8 @@ class RuleSetClassifier:
         """
         local_X = X.copy()
         for feature in tqdm(numerical_features, total=len(numerical_features), desc='Discretizing numerical features...', disable = silent):
-            # Combine the feature and target for pivot finding.
-            Z = pd.concat([local_X[feature], y], axis=1)
             # Find pivot points for discretization.
-            pivots = find_pivots(Z)
+            pivots = find_pivots(local_X[feature], y)
             if len(pivots) == 0:
                 # Skip features with no suitable pivots.
                 continue
