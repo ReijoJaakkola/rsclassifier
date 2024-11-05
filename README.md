@@ -5,11 +5,21 @@
 [![Downloads](https://pepy.tech/badge/rsclassifier)](https://pepy.tech/project/rsclassifier)
 [![GitHub](https://img.shields.io/badge/GitHub-Repo-blue.svg)](https://github.com/ReijoJaakkola/rsclassifier)
 
-### Overview
+# Overview
 
-This package consist of the module `rsclassifier` which contains the class `RuleSetClassifier`.
+This package consist of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm, while the second one implements an entropy-based supervised discretization algorithm.
 
-`RuleSetClassifier` is a non-parametric supervised learning method that can be used for classification and data mining. As the name suggests, `RuleSetClassifier` produces classifiers which consist of a set of rules which are learned from the given data. As a concrete example, the following classifier was produced from the well-known Iris data set.
+# Installation
+
+To install the package, you can simply use `pip`:
+
+```bash
+pip install rsclassifier
+```
+
+# `rsclassifier`
+
+This module contains the class `RuleSetClassifier`, which is a non-parametric supervised learning method that can be used for classification and data mining. As the name suggests, `RuleSetClassifier` produces classifiers which consist of a set of rules which are learned from the given data. As a concrete example, the following classifier was produced from the well-known Iris data set.
 
 **IF**  
 **(petal_length_in_cm > 2.45 AND petal_width_in_cm > 1.75) {support: 33, confidence: 0.97}**  
@@ -52,14 +62,6 @@ Let `rsc` be an instance of `RuleSetClassifier` and let `X` be a pandas datafram
 
 **Note**: At present, `RuleSetClassifier` does not support datasets with missing values. You will need to preprocess your data (e.g., removing missing values) before using the classifier.
 
-## Installation
-
-To install the package, you can use `pip`:
-
-```bash
-pip install rsclassifier
-```
-
 ### Background
 
 The rule learning method implemented by `RuleSetClassifier` was inspired by and extends the approach taken in the [paper](https://arxiv.org/abs/2402.05680), which we refer here as the **ideal DNF-method**. The ideal DNF-method goes as follows. First, the input data is Booleanized. Then, a small number of promising features is selected. Finally, a DNF-formula is computed for those promising features for which the number of misclassified points is as small as possible.
@@ -73,16 +75,19 @@ The way `RuleSetClassifier` extends and modifies the ideal DNF-method is mainly 
 
 ```python
 import pandas as pd
+from sklearn import datasets
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from rsclassifier import RuleSetClassifier
 
 # Load the data set.
-df = pd.read_csv('iris.csv')
+iris = datasets.load_iris()
+df = pd.DataFrame(data= iris.data, columns= iris.feature_names)
+df['target'] = iris.target
 
 # Split it into train and test.
-X = df.drop(columns = ['class'], axis = 1)
-y = df['class']
+X = df.drop(columns = ['target'], axis = 1)
+y = df['target']
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size = 0.8)
 
 # Initialize RuleSetClassifier.
@@ -101,4 +106,46 @@ print()
 print(rsc)
 print(f'Rule set classifier training accuracy: {train_accuracy}')
 print(f'Rule set classifier test accuracy: {test_accuracy}')
+```
+
+# `discretization`
+
+This module contains the function `find_pivots`, which can be used for entropy-based supervised discretization of numeric features. This is the function that also `RuleSetClassifier` uses for Booleanizing numerical data.
+
+The function takes two pandas series, `x` and `y`, as inputs:
+- `x`: Contains the values of the numeric feature to be discretized.
+- `y`: Holds the corresponding target variable values.
+
+The output of the function is a list of pivot points that represent where the feature `x` should be split to achieve maximum information gain regarding the target variable `y`. These pivots can be used to Booleanize the feature `x`. 
+
+Note that the list of pivots can be empty! This simply means that the feature `x` is most likely not useful for predicting the value of `y`.
+
+### How does it work?
+
+At a high-level the algorithm behind `find_pivots` can be described as follows.
+
+- **Sorting**: The feature column `x` is first sorted to ensure that the midpoints calculated as potential pivots are meaningful and represent transitions between distinct data values.
+- **Candidate Pivot Calculation**: For each pair of consecutive unique values in the sorted list, a midpoint is calculated. These midpoints serve as candidate pivots for splitting the dataset.
+- **Split Evaluation**: Each candidate pivot is evaluated by splitting the dataset into two subsets:
+  - One subset contains all records with feature values less than or equal to the pivot.
+  - The other subset contains all records with feature values greater than the pivot.
+- **Information Gain Calculation**: For each split, the information gain is calculated based on how well the split organizes the target values into homogeneous subgroups. This measure is used to assess the quality of the split.
+- **Recursion**: If a split significantly increases the information gain (beyond a predefined threshold), the process is recursively applied to each of the resulting subsets. This recursive approach continues until no further significant information gain can be achieved.
+
+For more details, see e.g. Section 7.2 in the book **Data mining: practical machine learning tools and techniques with Java implementations** by Ian H. Witten and Eibe Prank.
+
+### Example
+
+```python
+import pandas as pd
+from sklearn import datasets
+from discretization import find_pivots
+
+# Load the data set.
+iris = datasets.load_iris()
+df = pd.DataFrame(data= iris.data, columns= iris.feature_names)
+df['target'] = iris.target
+
+# Calculate pivots for the (numerical) feature "petal length (cm)".
+pivots = find_pivots(df['petal length (cm)'], df['target']) # The pivots are 2.45 and 4.75.
 ```

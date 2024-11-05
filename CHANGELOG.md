@@ -1,5 +1,12 @@
 # Changelog
 
+# v1.2.0 - (11/5/2024)
+### Added
+- **Entropy-Based Discretization Module**: A new module named `discretization` has been introduced. It currently includes the `find_pivots` function, which supports entropy-based supervised discretization.
+
+### Changes
+- **Improved `find_pivots` Performance**: Enhancements have been made to the `find_pivots` function to improve its execution efficiency.
+
 # v1.1.1 - (10/27/2024)
 ### Added
 - Default value for `growth_size` is now 1.
