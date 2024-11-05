@@ -6,19 +6,6 @@ from typing import Tuple
 FEATURE = 'feature'
 TARGET = 'target'
 
-def calculate_midpoints(numbers : np.ndarray) -> np.ndarray:
-    """
-    Calculate midpoints between sorted numbers.
-    
-    Args:
-        numbers (numpy.ndarray): Array of numbers.
-
-    Returns:
-        numpy.ndarray: Array of midpoints.
-    """
-    sorted_numbers = np.sort(numbers)
-    return (sorted_numbers[:-1] + sorted_numbers[1:]) / 2
-
 def minimum_information_gain(num_rows : int, entropy : float, entropy1 : float, entropy2 : float, unique_targets : int, unique_targets1 : int, unique_targets2 : int) -> float:
     """
     Calculate the minimum information gain.
@@ -94,7 +81,7 @@ def find_pivots(x : pd.Series, y : pd.Series) -> list:
     Returns:
         list: List of pivot points that yield significant information gain.
     """
-    z = pd.concat([x, y], axis=1, keys=[FEATURE, TARGET])
+    z = pd.concat([x, y], axis=1, keys=[FEATURE, TARGET]).sort_values(by = FEATURE)
     information_upper_bound = np.log2(len(y.unique())) + 1
     pivots = []
     stack = [z]
@@ -105,9 +92,9 @@ def find_pivots(x : pd.Series, y : pd.Series) -> list:
         unique_values = z[FEATURE].unique()
 
         if len(unique_values) <= 1:
-            continue  # Skip if the class distribution is homogeneous.
+            continue  # Skip if there are no pivots.
 
-        pivot_candidates = calculate_midpoints(unique_values)
+        pivot_candidates = (unique_values[:-1] + unique_values[1:]) / 2
         best_pivot, smallest_information_value = find_best_pivot(z, pivot_candidates, num_rows, information_upper_bound)
 
         if best_pivot is None:
@@ -115,13 +102,17 @@ def find_pivots(x : pd.Series, y : pd.Series) -> list:
 
         z1, z2 = split_data_by_pivot(z, best_pivot)
 
+        w = z[TARGET]
+        v = z1[TARGET]
+        u = z2[TARGET]
+
         # Calculate information gain
-        E = information(z[TARGET])
-        E1 = information(z1[TARGET])
-        E2 = information(z2[TARGET])
-        k = len(z[TARGET].unique())
-        k1 = len(z1[TARGET].unique())
-        k2 = len(z2[TARGET].unique())
+        E = information(w)
+        E1 = information(v)
+        E2 = information(u)
+        k = len(w.unique())
+        k1 = len(v.unique())
+        k2 = len(u.unique())
 
         min_inf_gain = minimum_information_gain(num_rows, E, E1, E2, k, k1, k2)
 
