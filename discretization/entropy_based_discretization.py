@@ -25,39 +25,43 @@ def minimum_information_gain(num_rows : int, entropy : float, entropy1 : float, 
     return (np.log2(num_rows - 1) / num_rows) + ((np.log2(3 ** unique_targets - 2) - unique_targets * entropy 
              + unique_targets1 * entropy1 + unique_targets2 * entropy2) / num_rows)
 
-def split_data_by_pivot(dataframe : pd.DataFrame, pivot : float) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def split_data_by_pivot(z : pd.DataFrame, pivot : float) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Split dataframe into two subsets based on a pivot value for the feature.
     
     Args:
-        dataframe (pandas.DataFrame): The input dataframe.
+        z (pandas.DataFrame): The input dataframe.
         pivot (float): The pivot value to split the feature.
 
     Returns:
         tuple: Two subsets of the dataframe split by the pivot.
     """
-    df_greater = dataframe[dataframe[FEATURE] > pivot]
-    df_lesser_equal = dataframe[dataframe[FEATURE] <= pivot]
+    df_greater = z[z[FEATURE] > pivot]
+    df_lesser_equal = z[z[FEATURE] <= pivot]
     return df_greater, df_lesser_equal
 
-def find_best_pivot(dataframe : pd.DataFrame, pivot_candidates : np.ndarray, N : int, information_upper_bound : float) -> Tuple[float,float]:
+def find_best_pivot(z : pd.DataFrame, information_upper_bound : float) -> Tuple[float,float]:
     """
     Find the best pivot based on the smallest information value.
 
     Args:
-        dataframe (pandas.DataFrame): The input dataframe.
-        pivot_candidates (numpy.ndarray): Array of pivot candidates.
-        N (int): Number of rows in the dataframe.
+        z (pandas.DataFrame): The input dataframe.
         information_upper_bound (float): Upper bound for information.
 
     Returns:
         tuple: The best pivot and its corresponding smallest information value.
     """
+    unique_values = z[FEATURE].unique()
+    if len(unique_values) <= 1:
+        return None, None  # Skip if there are no pivots.
+    pivot_candidates = (unique_values[:-1] + unique_values[1:]) / 2
+
     best_pivot = None
     smallest_information_value = information_upper_bound
 
+    N = len(z)
     for pivot in pivot_candidates:
-        z1, z2 = split_data_by_pivot(dataframe, pivot)
+        z1, z2 = split_data_by_pivot(z, pivot)
         n1, n2 = len(z1), len(z2)
 
         if n1 == 0 or n2 == 0:
@@ -88,18 +92,9 @@ def find_pivots(x : pd.Series, y : pd.Series) -> list:
 
     while stack:
         z = stack.pop()
-        num_rows = len(z)
-        unique_values = z[FEATURE].unique()
-
-        if len(unique_values) <= 1:
-            continue  # Skip if there are no pivots.
-
-        pivot_candidates = (unique_values[:-1] + unique_values[1:]) / 2
-        best_pivot, smallest_information_value = find_best_pivot(z, pivot_candidates, num_rows, information_upper_bound)
-
+        best_pivot, smallest_information_value = find_best_pivot(z, information_upper_bound)
         if best_pivot is None:
             continue
-
         z1, z2 = split_data_by_pivot(z, best_pivot)
 
         w = z[TARGET]
@@ -114,7 +109,7 @@ def find_pivots(x : pd.Series, y : pd.Series) -> list:
         k1 = len(v.unique())
         k2 = len(u.unique())
 
-        min_inf_gain = minimum_information_gain(num_rows, E, E1, E2, k, k1, k2)
+        min_inf_gain = minimum_information_gain(len(z), E, E1, E2, k, k1, k2)
 
         # If significant information gain is found, store pivot and continue splitting
         if (E - min_inf_gain) > smallest_information_value:
