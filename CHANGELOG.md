@@ -1,5 +1,8 @@
 # Changelog
 
+# v1.2.1 - (11/8/2024)
+- Fixed the downloads badge on README.
+
 # v1.2.0 - (11/5/2024)
 ### Added
 - **Entropy-Based Discretization Module**: A new module named `discretization` has been introduced. It currently includes the `find_pivots` function, which supports entropy-based supervised discretization.
