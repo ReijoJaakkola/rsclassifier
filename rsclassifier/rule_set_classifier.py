@@ -356,6 +356,7 @@ class RuleSetClassifier:
     def fit(
             self,
             num_prop : int,
+            fs_algorithm : str = 'dt',
             growth_size : float = 1.0,
             random_state : int = 42,
             default_prediction : Any = None,
@@ -366,6 +367,7 @@ class RuleSetClassifier:
 
         Args:
             num_prop (int): The number of features (properties) to use.
+            fs_algorithm (fs): Algorithm used to select which Boolean features to use.
             growth_size (float): Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split. If equal to 1.0 (the default value), no pruning will be done.
             random_state (int): Controls the shuffling applied to the data before applying the split.
             default_prediction (any): The default prediction if no rule matches.
@@ -381,7 +383,8 @@ class RuleSetClassifier:
             print('WARNING: num_prop more than the number of features. All of the features will be used.')
             num_prop = len(self.X.columns)
         
-        used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)
+        if fs_algorithm == 'dt':
+            used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)
         
         if growth_size == 1.0:
             self.X_grow = self.X
