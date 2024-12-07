@@ -4,7 +4,7 @@ from tqdm import tqdm
 from typing import Any, Tuple
 from sklearn.model_selection import train_test_split
 from discretization.entropy_based_discretization import find_pivots
-from rsclassifier.feature_selection import feature_selection_using_decision_tree
+from rsclassifier.feature_selection import feature_selection_using_decision_tree, feature_selection_using_brute_force
 from rsclassifier.quine_mccluskey import minimize_dnf
 
 class Error(Exception):
@@ -90,17 +90,24 @@ class RuleSetClassifier:
         return local_X
 
     # Loads and preprocesses data into the classifier.
-    def load_data(self, X : pd.DataFrame, y : pd.Series, boolean : list = [], categorical : list = [], numerical : list = [], silent : bool = False) -> None:
+    def load_data(
+            self, X : pd.DataFrame,
+            y : pd.Series,
+            boolean : list = [],
+            categorical : list = [],
+            numerical : list = [],
+            silent : bool = False
+        ) -> None:
         """
         Load and preprocess the data into the classifier by converting features to Boolean features.
 
         Args:
             X (pandas.DataFrame): The feature data.
             y (pandas.Series): The target labels.
-            boolean (list): List of Boolean features.
-            categorical (list): List of categorical features.
-            numerical (list): List of numerical features.
-            silent (bool): Whether to suppress output.
+            boolean (list), default = []: List of Boolean features.
+            categorical (list), default = []: List of categorical features.
+            numerical (list), default = []: List of numerical features.
+            silent (bool), default = False: Whether to suppress output.
         """
         bool_X = X.copy()
         if len(boolean) > 0:
@@ -353,8 +360,7 @@ class RuleSetClassifier:
 
         self.rules = simplified_rules
 
-    def fit(
-            self,
+    def fit(self,
             num_prop : int,
             fs_algorithm : str = 'dt',
             growth_size : float = 1.0,
@@ -363,15 +369,15 @@ class RuleSetClassifier:
             silent : bool = False
         ) -> None:
         """
-        Train the RuleSetClassifier by selecting features, forming rules, and simplifying them.
+        Train the RuleSetClassifier by selecting features, forming rules and simplifying the rules.
 
         Args:
             num_prop (int): The number of features (properties) to use.
-            fs_algorithm (fs): Algorithm used to select which Boolean features to use.
-            growth_size (float): Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split. If equal to 1.0 (the default value), no pruning will be done.
-            random_state (int): Controls the shuffling applied to the data before applying the split.
-            default_prediction (any): The default prediction if no rule matches.
-            silent (bool): If True, suppress output during training.
+            fs_algorithm ({'dt', 'brute'}), default = 'dt': Algorithm used to select which Boolean features to use.
+            growth_size (float), default = 1.0: Should be in the range (0,1] and represent the proportion of the dataset to include in the growth split. If equal to 1.0 (the default value), no pruning will be done.
+            random_state (int), default = 42: Controls the shuffling applied to the data before applying the split.
+            default_prediction (any), dfault = None: The default prediction if no rule matches.
+            silent (bool), default = False: If True, suppress output during training.
         """
         if not self.is_initialized:
             raise Error('Data has not been loaded.')
@@ -385,6 +391,10 @@ class RuleSetClassifier:
         
         if fs_algorithm == 'dt':
             used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)
+        elif fs_algorithm == 'brute':
+            used_props = feature_selection_using_brute_force(self.X, self.y, num_prop, silent)
+        else:
+            raise Error('Invalid fs_algorithm.')
         
         if growth_size == 1.0:
             self.X_grow = self.X
