@@ -17,7 +17,7 @@ To install the package, you can simply use `pip`:
 pip install rsclassifier
 ```
 
-# `rsclassifier`
+# First module: rsclassifier
 
 This module contains the class `RuleSetClassifier`, which is a non-parametric supervised learning method that can be used for classification and data mining. As the name suggests, `RuleSetClassifier` produces classifiers which consist of a set of rules which are learned from the given data. As a concrete example, the following classifier was produced from the well-known Iris data set.
 
@@ -54,8 +54,9 @@ This classifier classifiers all tumors which satisfy one of the four rules liste
 
 Let `rsc` be an instance of `RuleSetClassifier` and let `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
 - **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store is to `rsc`.
-- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The two hyperparameters `num_prop` and `growth_size` work as follows.
-    - `num_prop` is an upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy. 
+- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, fs_algorithm, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The two hyperparameters `num_prop` and `growth_size` work as follows.
+    - `num_prop` is an upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy.
+    - `fs_algorithm` determines the algorithm used for selecting the Boolean features used by the classifier. Has two options, `dt` (which is the default) and `brute`. `dt` uses decision trees for feature selection, `brute` finds the set of features for which the error on training data is minimized. Note that running `brute` with a large `num_prop` can take a long time plus it can lead to overfitting.
     - `growth_size` is a float in the range (0, 1], determining the proportion of X used for learning rules. The remaining portion is used for pruning. If `growth_size` is set to 1, which is the default value, no pruning is performed. Also 2/3 seems to work well in practice.
 - **Make predictions**: Use `rsc.predict(X)` to generate predictions. This function returns a pandas Series.
 - **Visualize the classifier**: Simply print the classifier to visualize the learned rules (together with their support and confidence).
@@ -108,7 +109,7 @@ print(f'Rule set classifier training accuracy: {train_accuracy}')
 print(f'Rule set classifier test accuracy: {test_accuracy}')
 ```
 
-# `discretization`
+# Second module: discretization
 
 This module contains the function `find_pivots`, which can be used for entropy-based supervised discretization of numeric features. This is the function that also `RuleSetClassifier` uses for Booleanizing numerical data.
 

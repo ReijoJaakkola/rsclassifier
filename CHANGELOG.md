@@ -1,5 +1,9 @@
 # Changelog
 
+# v1.3.0 - (12/8/2024)
+### Added
+- **Brute force option for feature selection**: The `fit` function of `rsclassifier` has a new argument `fs_algorithm`, which can be used to change the algorithm used for selecting the features used by `rsclassifier`. The default option is `dt`, which uses decision trees for feature selection, while the second option is `brute` which finds the set of features for which the error on training data is minimized.
+
 # v1.2.1 - (11/8/2024)
 - Fixed the downloads badge on README.
 
