@@ -113,8 +113,6 @@ print(f'Rule set classifier test accuracy: {test_accuracy}')
 
 This module contains the functions `find_pivots`, `booleanize_categorical_features`, and `booleanize_numerical_features`.
 
----
-
 ## find_pivots
 
 `find_pivots` can be used for entropy-based supervised discretization of numeric features. This is the function that `RuleSetClassifier` also uses for Booleanizing numerical data.
