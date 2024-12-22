@@ -1,5 +1,9 @@
 # Changelog
 
+# v1.3.1 - (22/12/2024)
+### Added
+- **New Booleanization functions**: `booleanize_categorical_features` and `booleanize_numerical_features`. The first one converts categorical features into Boolean features using one-hot encoding style. The second one discretizes numerical features using entropy-based pivot points and converts them into Boolean features.
+
 # v1.3.0 - (12/8/2024)
 ### Added
 - **Brute force option for feature selection**: The `fit` function of `rsclassifier` has a new argument `fs_algorithm`, which can be used to change the algorithm used for selecting the features used by `rsclassifier`. The default option is `dt`, which uses decision trees for feature selection, while the second option is `brute` which finds the set of features for which the error on training data is minimized.

@@ -50,7 +50,7 @@ This classifier classifiers all tumors which satisfy one of the four rules liste
 - It can handle both categorical and numerical data.
 - The learning process is very fast.
 
-### How to use `RuleSetClassifier`
+### How to use RuleSetClassifier
 
 Let `rsc` be an instance of `RuleSetClassifier` and let `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
 - **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store is to `rsc`.
@@ -111,42 +111,105 @@ print(f'Rule set classifier test accuracy: {test_accuracy}')
 
 # Second module: discretization
 
-This module contains the function `find_pivots`, which can be used for entropy-based supervised discretization of numeric features. This is the function that also `RuleSetClassifier` uses for Booleanizing numerical data.
+This module contains the functions `find_pivots`, `booleanize_categorical_features`, and `booleanize_numerical_features`.
 
-The function takes two pandas series, `x` and `y`, as inputs:
-- `x`: Contains the values of the numeric feature to be discretized.
-- `y`: Holds the corresponding target variable values.
+---
 
-The output of the function is a list of pivot points that represent where the feature `x` should be split to achieve maximum information gain regarding the target variable `y`. These pivots can be used to Booleanize the feature `x`. 
+## find_pivots
 
-Note that the list of pivots can be empty! This simply means that the feature `x` is most likely not useful for predicting the value of `y`.
+`find_pivots` can be used for entropy-based supervised discretization of numeric features. This is the function that `RuleSetClassifier` also uses for Booleanizing numerical data.
+
+### Parameters:
+- **`x`** (`pandas.Series`): Contains the values of the numeric feature to be discretized.
+- **`y`** (`pandas.Series`): Holds the corresponding target variable values.
+
+### Returns:
+- `list`: A list of pivot points that represent where the feature `x` should be split to achieve maximum information gain regarding the target variable `y`. The list of pivots can be empty if the feature `x` is not useful for predicting `y`.
 
 ### How does it work?
 
-At a high-level the algorithm behind `find_pivots` can be described as follows.
+At a high level, the algorithm behind `find_pivots` works as follows:
+1. **Sorting**: The feature column `x` is sorted to ensure that potential pivots represent transitions between distinct data values.
+2. **Candidate Pivot Calculation**: Midpoints between consecutive unique values in the sorted list are calculated as candidate pivots.
+3. **Split Evaluation**: Each candidate pivot is evaluated by splitting the dataset into two subsets:
+   - One subset contains records with feature values ≤ the pivot.
+   - The other subset contains records with feature values > the pivot.
+4. **Information Gain Calculation**: Information gain is calculated to assess the quality of each split.
+5. **Recursion**: If a split significantly increases information gain, the process is recursively applied to each subset until no further significant gains can be achieved.
 
-- **Sorting**: The feature column `x` is first sorted to ensure that the midpoints calculated as potential pivots are meaningful and represent transitions between distinct data values.
-- **Candidate Pivot Calculation**: For each pair of consecutive unique values in the sorted list, a midpoint is calculated. These midpoints serve as candidate pivots for splitting the dataset.
-- **Split Evaluation**: Each candidate pivot is evaluated by splitting the dataset into two subsets:
-  - One subset contains all records with feature values less than or equal to the pivot.
-  - The other subset contains all records with feature values greater than the pivot.
-- **Information Gain Calculation**: For each split, the information gain is calculated based on how well the split organizes the target values into homogeneous subgroups. This measure is used to assess the quality of the split.
-- **Recursion**: If a split significantly increases the information gain (beyond a predefined threshold), the process is recursively applied to each of the resulting subsets. This recursive approach continues until no further significant information gain can be achieved.
+For more details, see Section 7.2 of **Data Mining: Practical Machine Learning Tools and Techniques with Java Implementations** by Ian H. Witten and Eibe Frank.
 
-For more details, see e.g. Section 7.2 in the book **Data mining: practical machine learning tools and techniques with Java implementations** by Ian H. Witten and Eibe Prank.
-
-### Example
-
+### Example:
 ```python
 import pandas as pd
 from sklearn import datasets
 from discretization import find_pivots
 
-# Load the data set.
+# Load the dataset
 iris = datasets.load_iris()
-df = pd.DataFrame(data= iris.data, columns= iris.feature_names)
+df = pd.DataFrame(data=iris.data, columns=iris.feature_names)
 df['target'] = iris.target
 
-# Calculate pivots for the (numerical) feature "petal length (cm)".
-pivots = find_pivots(df['petal length (cm)'], df['target']) # The pivots are 2.45 and 4.75.
+# Calculate pivots for the feature "petal length (cm)"
+pivots = find_pivots(df['petal length (cm)'], df['target'])
+print(pivots)  # Output: [2.45, 4.75]
+```
+
+## booleanize_categorical_features
+
+Converts categorical features into Boolean features using one-hot encoding style.
+
+### Parameters:
+- **`X`** (`pandas.DataFrame`): The feature data.
+- **`categorical_features`** (`list`): List of categorical features to be converted.
+
+### Returns:
+- `pandas.DataFrame`: A DataFrame with the Booleanized categorical features.
+
+### Example:
+```python
+import pandas as pd
+from discretization import booleanize_categorical_features
+
+# Sample DataFrame
+data = pd.DataFrame({
+    'Feature1': ['A', 'B', 'A', 'C'],
+    'Feature2': [1, 2, 3, 4]
+})
+
+# Booleanize the categorical feature
+categorical_features = ['Feature1']
+bool_data = booleanize_categorical_features(data, categorical_features)
+print(bool_data)
+```
+
+## booleanize_numerical_features
+
+Discretizes numerical features using entropy-based pivot points and converts them into Boolean features.
+
+### Parameters:
+- **`X`** (`pandas.DataFrame`): The feature data.
+- **`y`** (`pandas.Series`): The target labels.
+- **`numerical_features`** (`list`): List of numerical features to be discretized.
+- **`silent`** (`bool`, optional): Whether to suppress progress output (default is `False`).
+
+### Returns:
+- `pandas.DataFrame`: A DataFrame with the Booleanized numerical features.
+
+### Example:
+```python
+import pandas as pd
+from discretization import booleanize_numerical_features
+
+# Sample DataFrame and target
+data = pd.DataFrame({
+    'Feature1': [1.2, 3.4, 5.6, 7.8],
+    'Feature2': [2.1, 4.3, 6.5, 8.7]
+})
+target = pd.Series([0, 1, 0, 1])
+
+# Booleanize the numerical features
+numerical_features = ['Feature1', 'Feature2']
+bool_data = booleanize_numerical_features(data, target, numerical_features)
+print(bool_data)
 ```
