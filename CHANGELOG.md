@@ -1,5 +1,8 @@
 # Changelog
 
+# v1.3.3 - (12/22/2024)
+- Better example for `booleanize_numerical_features`.
+
 # v1.3.2 - (12/22/2024)
 ### Bugfix
 - Fixed an issue with `booleanize_numerical_features`.

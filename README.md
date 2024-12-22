@@ -197,17 +197,15 @@ Discretizes numerical features using entropy-based pivot points and converts the
 ### Example:
 ```python
 import pandas as pd
+from sklearn import datasets
 from discretization import booleanize_numerical_features
 
-# Sample DataFrame and target
-data = pd.DataFrame({
-    'Feature1': [1.2, 3.4, 5.6, 7.8],
-    'Feature2': [2.1, 4.3, 6.5, 8.7]
-})
-target = pd.Series([0, 1, 0, 1])
+# Load the dataset
+iris = datasets.load_iris()
+X = pd.DataFrame(data=iris.data, columns=iris.feature_names)
+y = pd.Series(iris.target)
 
 # Booleanize the numerical features
-numerical_features = ['Feature1', 'Feature2']
-bool_data = booleanize_numerical_features(data, target, numerical_features)
+bool_data = booleanize_numerical_features(X,y,X.columns)
 print(bool_data)
 ```
