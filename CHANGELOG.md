@@ -1,6 +1,6 @@
 # Changelog
 
-# v1.3.1 - (22/12/2024)
+# v1.3.1 - (12/22/2024)
 ### Added
 - **New Booleanization functions**: `booleanize_categorical_features` and `booleanize_numerical_features`. The first one converts categorical features into Boolean features using one-hot encoding style. The second one discretizes numerical features using entropy-based pivot points and converts them into Boolean features.
 
