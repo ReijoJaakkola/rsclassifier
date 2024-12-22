@@ -1,5 +1,5 @@
 import pandas as pd
-from entropy_based_discretization import find_pivots
+from discretization.entropy_based_discretization import find_pivots
 from tqdm import tqdm
 
 def booleanize_categorical_features(X : pd.DataFrame, categorical_features : list) -> pd.DataFrame:
