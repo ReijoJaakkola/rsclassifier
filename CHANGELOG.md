@@ -1,6 +1,6 @@
 # Changelog
 
-# v1.4.0 - (12/29/2024)
+# v1.4.0 - (12/30/2024)
 ### Changes
 - `booleanize_categorical_features` and `booleanize_numerical_features` are replaced by the `Booleanization` class.
 
