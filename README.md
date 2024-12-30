@@ -52,7 +52,7 @@ This classifier classifiers all tumors which satisfy one of the four rules liste
 
 ### How to use RuleSetClassifier
 
-Let `rsc` be an instance of `RuleSetClassifier` and let `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
+Let `rsc` be an instance of `RuleSetClassifier`, `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
 - **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store is to `rsc`.
 - **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, fs_algorithm, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The two hyperparameters `num_prop` and `growth_size` work as follows.
     - `num_prop` is an upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy.
@@ -115,14 +115,7 @@ This module contains the functions `find_pivots`, `booleanize_categorical_featur
 
 ## find_pivots
 
-`find_pivots` can be used for entropy-based supervised discretization of numeric features. This is the function that `RuleSetClassifier` also uses for Booleanizing numerical data.
-
-### Parameters:
-- **`x`** (`pandas.Series`): Contains the values of the numeric feature to be discretized.
-- **`y`** (`pandas.Series`): Holds the corresponding target variable values.
-
-### Returns:
-- `list`: A list of pivot points that represent where the feature `x` should be split to achieve maximum information gain regarding the target variable `y`. The list of pivots can be empty if the feature `x` is not useful for predicting `y`.
+`find_pivots` can be used for entropy-based supervised discretization of numeric features. This is the function that `RuleSetClassifier` and `Booleanizer` use for Booleanizing numerical data.
 
 ### How does it work?
 
@@ -153,59 +146,40 @@ pivots = find_pivots(df['petal length (cm)'], df['target'])
 print(pivots)  # Output: [2.45, 4.75]
 ```
 
-## booleanize_categorical_features
+## Booleanizer
 
-Converts categorical features into Boolean features using one-hot encoding style.
+The `Booleanizer` class is designed to transform a dataset into a booleanized format for classification purposes. The booleanized data is obtained by applying one-hot encoding to categorical features and splitting numerical features into boolean columns based on learned pivot values.
 
-### Parameters:
-- **`X`** (`pandas.DataFrame`): The feature data.
-- **`categorical_features`** (`list`): List of categorical features to be converted.
+### How to use:
+Let `booleanizer` be an instance of `Booleanizer`, `X` a pandas dataframe (input features) and `y` a pandas series (target labels).
+- **Collect unique values for categorical features:** For categorical features we need to store the unique values (or classes) in each categorical feature. This step is done by calling the `store_classes_for_cat_features` method.
+- **Learn pivots for numerical features:** For the numerical features, `Booleanizer` uses entropy-based discretization to learn pivot points which it will then store. This step is done using the `store_pivots_for_num_features` method.
+- **Booleanize the data:** After storing the categories for categorical features and the pivot points for numerical features, the data can be booleanized using the `booleanize_dataframe method`.
 
-### Returns:
-- `pandas.DataFrame`: A DataFrame with the Booleanized categorical features.
-
-### Example:
-```python
-import pandas as pd
-from discretization import booleanize_categorical_features
-
-# Sample DataFrame
-data = pd.DataFrame({
-    'Feature1': ['A', 'B', 'A', 'C'],
-    'Feature2': [1, 2, 3, 4]
-})
-
-# Booleanize the categorical feature
-categorical_features = ['Feature1']
-bool_data = booleanize_categorical_features(data, categorical_features)
-print(bool_data)
-```
-
-## booleanize_numerical_features
-
-Discretizes numerical features using entropy-based pivot points and converts them into Boolean features.
-
-### Parameters:
-- **`X`** (`pandas.DataFrame`): The feature data.
-- **`y`** (`pandas.Series`): The target labels.
-- **`numerical_features`** (`list`): List of numerical features to be discretized.
-- **`silent`** (`bool`, optional): Whether to suppress progress output (default is `False`).
-
-### Returns:
-- `pandas.DataFrame`: A DataFrame with the Booleanized numerical features.
+Note that a single instance of `Booleanizer` can be used to booleanize several different datasets. In particular, a `Booleanizer` trained on the training data can be used to booleanize the test data.
 
 ### Example:
 ```python
 import pandas as pd
 from sklearn import datasets
-from discretization import booleanize_numerical_features
+from sklearn.model_selection import train_test_split
+from discretization import Booleanizer
 
-# Load the dataset
+# Load the data.
 iris = datasets.load_iris()
 X = pd.DataFrame(data=iris.data, columns=iris.feature_names)
 y = pd.Series(iris.target)
 
-# Booleanize the numerical features
-bool_data = booleanize_numerical_features(X,y,X.columns)
-print(bool_data)
+# Split data into train and test sets.
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)
+
+# Initialize the booleanizer.
+booleanizer = Booleanizer()
+
+# Learn pivots from the training data.
+booleanizer.store_pivots_for_num_features(X_train, y_train, X.columns)
+
+# Booleanize the training data and the test data using the same pivots.
+X_train_bool = booleanizer.booleanize_dataframe(X_train)
+X_test_bool = booleanizer.booleanize_dataframe(X_test)
 ```
