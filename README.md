@@ -2,12 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.6%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![PyPI Downloads](https://static.pepy.tech/badge/rsclassifier)
+[![PyPI Downloads](https://static.pepy.tech/badge/rsclassifier)](https://pepy.tech/projects/rsclassifier)
 [![GitHub](https://img.shields.io/badge/GitHub-Repo-blue.svg)](https://github.com/ReijoJaakkola/rsclassifier)
 
 # Overview
 
-This package consist of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm, while the second one implements an entropy-based supervised discretization algorithm.
+This package consist of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm, while the second one implements an entropy-based supervised discretization algorithm and a class for booleanizing data.
 
 # Installation
 
@@ -111,7 +111,7 @@ print(f'Rule set classifier test accuracy: {test_accuracy}')
 
 # Second module: discretization
 
-This module contains the functions `find_pivots`, `booleanize_categorical_features`, and `booleanize_numerical_features`.
+This module contains the function `find_pivots` and the class `Booleanizer`.
 
 ## find_pivots
 

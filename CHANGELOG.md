@@ -1,5 +1,8 @@
 # Changelog
 
+# v1.4.1 - (1/5/2025)
+- Fixed the downloads badge and typoes on README.
+
 # v1.4.0 - (12/30/2024)
 ### Changes
 - `booleanize_categorical_features` and `booleanize_numerical_features` are replaced by the `Booleanization` class.
