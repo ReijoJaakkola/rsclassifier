@@ -20,7 +20,7 @@ class Booleanizer:
             categorical_features (list): List of categorical features.
         """
         for feature in categorical_features:
-            self.classes_for_cat_features = X[feature].unique()
+            self.classes_for_cat_features[feature] = list(X[feature].unique())
 
     def store_pivots_for_num_features(
             self,

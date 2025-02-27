@@ -386,8 +386,9 @@ class RuleSetClassifier:
             raise Error('growth_size needs to be in the range (0,1].')
         
         if num_prop > len(self.X.columns):
-            print('WARNING: num_prop more than the number of features. All of the features will be used.')
-            num_prop = len(self.X.columns)
+            if not silent:
+                print('WARNING: num_prop more than the number of features. All of the features will be used.')
+                num_prop = len(self.X.columns)
         
         if fs_algorithm == 'dt':
             used_props = feature_selection_using_decision_tree(self.X, self.y, num_prop)

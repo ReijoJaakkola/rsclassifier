@@ -1,5 +1,9 @@
 # Changelog
 
+# v1.4.2 - (2/27/2025)
+- Fixed a bug in booleanization.
+- In `rsclassifier` setting `silent = True` also supresses warnings.
+
 # v1.4.1 - (1/5/2025)
 - Fixed the downloads badge and typoes on README.
 
