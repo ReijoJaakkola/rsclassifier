@@ -229,6 +229,57 @@ class RuleSetClassifier:
             simplified_terms.append(simplified_term)
         return simplified_terms
     
+    def _evaluate_term_using_training_data(self, term : list, prediction : Any) -> float:
+        """
+        Evaluate the accuracy of a given term using training data.
+
+        Args:
+            term (list): A list of literals.
+            prediction (Any): The predicted class label associated with the term.
+
+        Returns:
+            float: The accuracy of the term, calculated as the ratio of correct predictions made by 
+                   the term to the total number of instances covered by the term. Returns 0.0 if the 
+                   term covers no instances.
+        """
+        term_mask = np.ones(len(self.X_grow), dtype = bool)
+        for literal in term:
+            term_mask &= (self.X_grow[literal[1]] == literal[0])
+        sum = (term_mask).sum()
+        if sum == 0:
+            return 0.0
+        else:
+            return (term_mask & (self.y_grow == prediction)).sum() / sum
+    
+    def _prune_terms_useless_literals(self, terms : list, prediction : Any, silent : bool) -> list:
+        """
+        Prune a given term by removing unnecessary (based on training data) literals.
+
+        Args:
+            terms (list): A list of terms.
+            prediction (Any): The predicted class label associated with the term.
+            silent (bool): Whether to suppress output.
+
+        Returns:
+            list: The pruned terms.
+        """
+        pruned_terms = []
+        for term in tqdm(terms, desc = f'Pruning terms for class {prediction}...', disable = silent):
+            local_term = term.copy()
+            while True:
+                old_score = self._evaluate_term_using_training_data(local_term, prediction)
+                best_term = local_term
+                for i in range(len(local_term)):
+                    reduced_term = local_term[:i] + local_term[i + 1:]  # Avoid deep copy
+                    new_score = self._evaluate_term_using_training_data(reduced_term, prediction)
+                    if old_score == new_score:
+                        best_term = reduced_term
+                if best_term == local_term:
+                    break
+                local_term = best_term
+            pruned_terms.append(local_term)
+        return pruned_terms
+    
     def _evaluate_term_using_cross_validation(self, term : list, prediction : Any) -> float:
         """
         Evaluate the accuracy of a given term using cross-validation.
@@ -251,31 +302,34 @@ class RuleSetClassifier:
         else:
             return (term_mask & (self.y_prune == prediction)).sum() / sum
     
-    def _prune_term(self, term : list, prediction : Any) -> list:
+    def _prune_term_cross_validation(self, terms : list, prediction : Any, silent : bool) -> list:
         """
-        Prune a given term to remove unnecessary literals.
+        Prune a given term by removing unnecessary (based on cross validation) literals.
 
         Args:
-            term (list): A list of literals.
+            terms (list): A list of terms.
             prediction (Any): The predicted class label associated with the term.
+            silent (bool): Whether to suppress output.
 
         Returns:
-            list: The pruned term.
+            list: The pruned terms.
         """
-        local_term = term.copy()
-        while True:
-            highest_score = self._evaluate_term_using_cross_validation(local_term, prediction)
-            best_term = local_term
-            for i in range(len(local_term)):
-                reduced_term = local_term[:i] + local_term[i + 1:]  # Avoid deep copy
-                score = self._evaluate_term_using_cross_validation(reduced_term, prediction)
-                if score > highest_score:
-                    highest_score = score
-                    best_term = reduced_term
-            if best_term == local_term:
-                break
-            local_term = best_term
-        return local_term
+        pruned_terms = []
+        for term in tqdm(terms, desc = f'Pruning terms for class {prediction}...', disable = silent):
+            local_term = term.copy()
+            while True:
+                highest_score = self._evaluate_term_using_cross_validation(local_term, prediction)
+                best_term = local_term
+                for i in range(len(local_term)):
+                    reduced_term = local_term[:i] + local_term[i + 1:]  # Avoid deep copy
+                    score = self._evaluate_term_using_cross_validation(reduced_term, prediction)
+                    if score > highest_score:
+                        highest_score = score
+                        best_term = reduced_term
+                if best_term == local_term:
+                    break
+            pruned_terms.append(local_term)
+        return pruned_terms
 
     def _entails(self, term1 : list, term2 : list) -> bool:
         """
@@ -319,9 +373,10 @@ class RuleSetClassifier:
 
         The simplification process involves three main steps:
         1. Boolean optimization using the Quine-McCluskey algorithm.
-        2. Domain-specific pruning. E.g. (x > 7 AND x > 6) is equivalent with (x > 7).
-        3. Further pruning based on cross validation.
-        4. Removing redundant terms by checking if any term entails another.
+        2. Domain knowledge-based pruning.
+        3. Removing literals that do not contribute to accuracy.
+        4. Further pruning based on cross validation.
+        5. Removing redundant terms by checking if any term entails another.
 
         Args:
             silent (bool): Whether to suppress output.
@@ -337,26 +392,26 @@ class RuleSetClassifier:
             # Step 2. Domain knowledge.
             simplified_terms = self._prune_terms_using_domain_knowledge(simplified_terms)
 
-            # Step 3. Pruning based on cross validation.
-            if self.X_prune is not None:
-                for i in tqdm(range(len(simplified_terms)), desc = f'Pruning terms for class {prediction}...', disable = silent):
-                    simplified_terms[i] = self._prune_term(simplified_terms[i], prediction)
+            # Step 3. Remove literals that do not contribute to accuracy.
+            simplified_terms = self._prune_terms_useless_literals(simplified_terms, prediction, silent)
 
-                # Step 4. Pruning can cause some of the rules to become redundant. Remove them.
-                 # TODO: Pruning can also lead to conflicts between rules. Is this a problem?
-                necessary_terms = []
-                for i in range(len(simplified_terms)):
-                    necessary = True
-                    for j in range(i + 1, len(simplified_terms)):
-                        if self._entails(simplified_terms[i], simplified_terms[j]):
-                            necessary = False
-                            break
-                    if necessary:
-                        necessary_terms.append(simplified_terms[i])
+            # Step 4. Pruning based on cross validation.
+            if self.X_prune is not None:
+                # TODO: This pruning can also lead to conflicts between rules. Is this a problem?
+                simplified_terms = self._prune_term_cross_validation(simplified_terms, prediction, silent)
             
-                simplified_rules.append([prediction, necessary_terms])
-            else:
-                simplified_rules.append([prediction, simplified_terms])
+            # Step 5. Pruning can cause some of the rules to become redundant. Remove them.
+            necessary_terms = []
+            for i in range(len(simplified_terms)):
+                necessary = True
+                for j in range(i + 1, len(simplified_terms)):
+                    if self._entails(simplified_terms[i], simplified_terms[j]):
+                        necessary = False
+                        break
+                if necessary:
+                    necessary_terms.append(simplified_terms[i])
+        
+            simplified_rules.append([prediction, necessary_terms])
 
         self.rules = simplified_rules
 
