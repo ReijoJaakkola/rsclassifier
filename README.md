@@ -7,7 +7,7 @@
 
 # Overview
 
-This package consist of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm, while the second one implements an entropy-based supervised discretization algorithm and a class for booleanizing data.
+This package consists of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm, while the second one implements an entropy-based supervised discretization algorithm and a class for booleanizing data.
 
 # Installation
 
@@ -33,7 +33,7 @@ Notice that each rule is accompanied by:
 - **Support**: The number of data points that satisfy the rule.
 - **Confidence**: The probability that a data point satisfying the rule is correctly classified.
 
-As an another concrete example, the following classifier was produced from the Breast Cancer Wisconsin data set.
+As another concrete example, the following classifier was produced from the Breast Cancer Wisconsin data set.
 
 **IF**  
 **(bare_nuclei > 2.50 AND clump_thickness > 4.50) {support: 134, confidence: 0.94}**  
@@ -42,21 +42,21 @@ As an another concrete example, the following classifier was produced from the B
 **THEN 4**  
 **ELSE 2**  
 
-This classifier classifiers all tumors which satisfy one of the four rules listed above as malign (4) and all other tumors as benign (2).
+This classifier classifies all tumors which satisfy one of the four rules listed above as malign (4) and all other tumors as benign (2).
 
 ### Advantages
 - `RuleSetClassifier` produces extremely interpretable and transparent classifiers.
-- It is very easy to use, as it has only two hyperparameters.
+- It is very easy to use, as it has only one main hyperparameter `num_prop`.
 - It can handle both categorical and numerical data.
 - The learning process is very fast.
 
 ### How to use RuleSetClassifier
 
 Let `rsc` be an instance of `RuleSetClassifier`, `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
-- **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store is to `rsc`.
-- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, fs_algorithm, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The two hyperparameters `num_prop` and `growth_size` work as follows.
+- **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store it in `rsc`.
+- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, fs_algorithm, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The hyperparameters `num_prop`, `fs_algorithm` and `growth_size` work as follows.
     - `num_prop` is an upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy.
-    - `fs_algorithm` determines the algorithm used for selecting the Boolean features used by the classifier. Has two options, `dt` (which is the default) and `brute`. `dt` uses decision trees for feature selection, `brute` finds the set of features for which the error on training data is minimized. Note that running `brute` with a large `num_prop` can take a long time plus it can lead to overfitting.
+    - `fs_algorithm` determines the algorithm used for selecting the Boolean features used by the classifier. It has two options: `dt` (which is the default) and `brute`. `dt` uses decision trees for feature selection, `brute` finds the set of features for which the error on training data is minimized. Note that running `brute` with a large `num_prop` can take a long time.
     - `growth_size` is a float in the range (0, 1], determining the proportion of X used for learning rules. The remaining portion is used for pruning. If `growth_size` is set to 1, which is the default value, no pruning is performed. Also 2/3 seems to work well in practice.
 - **Make predictions**: Use `rsc.predict(X)` to generate predictions. This function returns a pandas Series.
 - **Visualize the classifier**: Simply print the classifier to visualize the learned rules (together with their support and confidence).
@@ -65,12 +65,13 @@ Let `rsc` be an instance of `RuleSetClassifier`, `X` be a pandas dataframe (inpu
 
 ### Background
 
-The rule learning method implemented by `RuleSetClassifier` was inspired by and extends the approach taken in the [paper](https://arxiv.org/abs/2402.05680), which we refer here as the **ideal DNF-method**. The ideal DNF-method goes as follows. First, the input data is Booleanized. Then, a small number of promising features is selected. Finally, a DNF-formula is computed for those promising features for which the number of misclassified points is as small as possible.
+The rule learning method implemented by `RuleSetClassifier` was inspired by and extends the approach taken in the [paper](https://arxiv.org/abs/2402.05680), which we refer to here as the **ideal DNF-method**. The ideal DNF-method goes as follows. First, the input data is Booleanized. Then, a small number of promising features is selected. Finally, a DNF-formula is computed for those promising features for which the number of misclassified points is as small as possible.
 
-The way `RuleSetClassifier` extends and modifies the ideal DNF-method is mainly as follows.
+The way `RuleSetClassifier` extends and modifies the ideal DNF-method is primarily as follows.
 - We use an entropy-based Booleanization for numerical features with minimum description length principle working as a stopping rule.
 - `RuleSetClassifier` is not restricted to binary classification tasks.
-- We implement rule pruning as a postprocessing step. This is important, as it makes the rules shorter and hence more interpretable.
+- We use the Quine-McCluskey algorithm for finding near-optimal size DNF-formulas.
+- We also implement rule pruning as a postprocessing step. This is important because it makes the rules shorter and hence more interpretable.
 
 ### Example
 
@@ -111,7 +112,7 @@ print(f'Rule set classifier test accuracy: {test_accuracy}')
 
 # Second module: discretization
 
-This module contains the function `find_pivots` and the class `Booleanizer`.
+This module contains the `find_pivots` function and the `Booleanizer` class.
 
 ## find_pivots
 

@@ -1,5 +1,9 @@
 # Changelog
 
+# v1.5.1 - (3/10/2025)
+### Changes
+- Improved README.
+
 # v1.5.0 - (3/1/2025)
 ### Added
 - **Better pruning of terms.**: Literals that do not contribute to training accuracy are removed now from the literals.
