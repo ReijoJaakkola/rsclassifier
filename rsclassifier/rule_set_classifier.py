@@ -328,6 +328,7 @@ class RuleSetClassifier:
                         best_term = reduced_term
                 if best_term == local_term:
                     break
+                local_term = best_term
             pruned_terms.append(local_term)
         return pruned_terms
 
