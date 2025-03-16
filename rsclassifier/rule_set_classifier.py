@@ -245,14 +245,20 @@ class RuleSetClassifier:
                    the term to the total number of instances covered by the term. Returns 0.0 if the 
                    term covers no instances.
         """
-        term_mask = np.ones(len(self.X_grow), dtype = bool)
-        for literal in term:
-            term_mask &= (self.X_grow[literal[1]] == literal[0])
-        sum = (term_mask).sum()
-        if sum == 0:
+        X_grow_np = self.X_grow.to_numpy()
+        feature_names = self.X_grow.columns.to_list()
+
+        term_mask = np.all([
+            (X_grow_np[:, feature_names.index(literal[1])] == literal[0])
+            for literal in term
+        ], axis=0)
+
+        covered_count = term_mask.sum()
+        if covered_count == 0:
             return 0.0
-        else:
-            return (term_mask & (self.y_grow == prediction)).sum() / sum
+
+        correct_count = np.sum(term_mask & (self.y_grow == prediction))
+        return correct_count / covered_count
     
     def _prune_terms_useless_literals(self, terms : list, prediction : Any, silent : bool) -> list:
         """
