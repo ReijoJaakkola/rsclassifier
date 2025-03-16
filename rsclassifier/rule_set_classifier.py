@@ -15,7 +15,7 @@ class RuleSetClassifier:
         """
         Initialize the RuleSetClassifier with default values.
         """
-        self.semantics = {}  # Maps propositional symbols to pairs [type, feature, value].
+        self.semantics = {}  # Maps propositional symbols to pairs [type, feature, value, feature index].
         self.rules = []  # List of rules. Each rule is a pair [output, terms].
         self.default_prediction = None  # Output if no rule matches.
         
@@ -45,12 +45,13 @@ class RuleSetClassifier:
         local_X = X.copy()
         for feature in categorical_features:
             unique_values = local_X[feature].unique()
+            feature_index = X.columns.get_loc(feature)
             new_columns = {}
             for value in unique_values:
                 # Create a new column for each value (one-hot encoding style).
                 new_columns[feature + ' = ' + str(value)] = (local_X[feature] == value)
                 # Store semantics for future use.
-                self.semantics[feature + ' = ' + str(value)] = ['categorical', feature, value]
+                self.semantics[feature + ' = ' + str(value)] = ['categorical', feature, value, feature_index]
             # Concatenate the new Boolean columns with the original data.
             local_X = pd.concat([local_X, pd.DataFrame(new_columns)], axis=1)
         # Drop original categorical columns.
@@ -72,6 +73,7 @@ class RuleSetClassifier:
         """
         local_X = X.copy()
         for feature in tqdm(numerical_features, total=len(numerical_features), desc='Discretizing numerical features...', disable = silent):
+            feature_index = X.columns.get_loc(feature)
             # Find pivot points for discretization.
             pivots = find_pivots(local_X[feature], y)
             if len(pivots) == 0:
@@ -82,7 +84,7 @@ class RuleSetClassifier:
                 # Create a Boolean column for values greater than the pivot.
                 new_columns[f'{feature} > {pivot:.2f}'] = local_X[feature] > pivot
                 # Store semantics for future use.
-                self.semantics[f'{feature} > {pivot:.2f}'] = ['numerical', feature, pivot]
+                self.semantics[f'{feature} > {pivot:.2f}'] = ['numerical', feature, pivot, feature_index]
             # Concatenate new columns with the data.
             local_X = pd.concat([local_X, pd.DataFrame(new_columns)], axis=1)
         # Drop original numerical columns.
@@ -112,7 +114,8 @@ class RuleSetClassifier:
         bool_X = X.copy()
         if len(boolean) > 0:
             for feature in boolean:
-                self.semantics[feature] = ['boolean', feature]
+                feature_index = bool_X.get_loc(feature)
+                self.semantics[feature] = ['boolean', feature, feature_index]
         if len(categorical) > 0:
             bool_X = self._booleanize_categorical_features(bool_X, categorical)
         if len(numerical) > 0:
@@ -469,38 +472,50 @@ class RuleSetClassifier:
         self._simplify(silent)
         self.is_fitted = True
 
-    def evaluate(self, assignment : dict) -> Any:
+    def _evaluate_batch(self, X: np.ndarray) -> np.ndarray:
         """
-        Evaluate an input assignment by checking which rule it satisfies.
+        Evaluate a batch of input assignments by checking which rule they satisfy.
 
         Args:
-            assignment (dict): A dictionary representing the feature values of an instance.
+            X (np.ndarray): A 2D NumPy array where each row represents an instance.
 
         Returns:
-            The predicted output class based on the rules.
+            np.ndarray: An array of predicted output classes.
         """
+        num_samples = X.shape[0]
+        predictions = np.full(num_samples, self.default_prediction)  # Default predictions
+
         for rule in self.rules:
             output = rule[0]
             terms = rule[1]
+            
+            # Create a mask for samples satisfying at least one term
+            term_satisfied = np.zeros(num_samples, dtype=bool)
+            
             for term in terms:
-                truth_value = True
+                term_mask = np.ones(num_samples, dtype=bool)  # Start assuming all rows satisfy the term
+                
                 for literal in term:
                     interpretation = self.semantics[literal[1]]
+                    
                     if interpretation[0] == 'boolean':
-                        if literal[0] != assignment[interpretation[1]]:
-                            truth_value = False
-                            break
+                        term_mask &= (X[:, interpretation[2]] == literal[0])
+                    
                     elif interpretation[0] == 'numerical':
-                        if literal[0] != (assignment[interpretation[1]] > interpretation[2]):
-                            truth_value = False
-                            break
-                    else:
-                        if literal[0] != (assignment[interpretation[1]] == interpretation[2]):
-                            truth_value = False
-                            break
-                if truth_value:
-                    return output
-        return self.default_prediction
+                        term_mask &= (X[:, interpretation[3]] > interpretation[2]) == literal[0]
+                    
+                    else:  # Categorical or other types
+                        term_mask &= (X[:, interpretation[3]] == interpretation[2]) == literal[0]
+                    
+                    if not term_mask.any():  # Early exit if no sample satisfies
+                        break
+
+                term_satisfied |= term_mask  # If any term is satisfied, the rule applies
+            
+            # Assign predictions for samples satisfying the rule
+            predictions[term_satisfied] = output
+
+        return predictions
 
     def predict(self, X : pd.DataFrame) -> pd.Series:
         """
@@ -513,11 +528,8 @@ class RuleSetClassifier:
             pandas.Series: The predicted class labels.
         """
         if not self.is_fitted:
-            raise Error('Model has not been fitted.')
-        def get_prediction(row):
-            assignment = row.to_dict()
-            return self.evaluate(assignment)
-        return X.apply(get_prediction, axis=1)
+            raise Error("Model has not been fitted.")
+        return pd.Series(self._evaluate_batch(X.to_numpy()))
     
     def _term_support_and_confidence(self, term : list, prediction : Any) -> Tuple[int, float]:
         """
