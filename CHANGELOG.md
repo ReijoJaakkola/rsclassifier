@@ -1,5 +1,12 @@
 # Changelog
 
+# v1.5.2 - (3/15/2025)
+### Changes
+- Significant improvements in the performance of learning, discretization, evaluation and pruning.
+
+### Bugfix
+- Fixed a bug in pruning.
+
 # v1.5.1 - (3/10/2025)
 ### Changes
 - Improved README.

@@ -45,13 +45,12 @@ class RuleSetClassifier:
         local_X = X.copy()
         for feature in categorical_features:
             unique_values = local_X[feature].unique()
-            feature_index = X.columns.get_loc(feature)
             new_columns = {}
             for value in unique_values:
                 # Create a new column for each value (one-hot encoding style).
                 new_columns[feature + ' = ' + str(value)] = (local_X[feature] == value)
                 # Store semantics for future use.
-                self.semantics[feature + ' = ' + str(value)] = ['categorical', feature, value, feature_index]
+                self.semantics[feature + ' = ' + str(value)] = ['categorical', feature, value]
             # Concatenate the new Boolean columns with the original data.
             local_X = pd.concat([local_X, pd.DataFrame(new_columns)], axis=1)
         # Drop original categorical columns.
@@ -73,7 +72,6 @@ class RuleSetClassifier:
         """
         local_X = X.copy()
         for feature in tqdm(numerical_features, total=len(numerical_features), desc='Discretizing numerical features...', disable = silent):
-            feature_index = X.columns.get_loc(feature)
             # Find pivot points for discretization.
             pivots = find_pivots(local_X[feature], y)
             if len(pivots) == 0:
@@ -84,7 +82,7 @@ class RuleSetClassifier:
                 # Create a Boolean column for values greater than the pivot.
                 new_columns[f'{feature} > {pivot:.2f}'] = local_X[feature] > pivot
                 # Store semantics for future use.
-                self.semantics[f'{feature} > {pivot:.2f}'] = ['numerical', feature, pivot, feature_index]
+                self.semantics[f'{feature} > {pivot:.2f}'] = ['numerical', feature, pivot]
             # Concatenate new columns with the data.
             local_X = pd.concat([local_X, pd.DataFrame(new_columns)], axis=1)
         # Drop original numerical columns.
@@ -114,13 +112,18 @@ class RuleSetClassifier:
         bool_X = X.copy()
         if len(boolean) > 0:
             for feature in boolean:
-                feature_index = bool_X.columns.get_loc(feature)
                 bool_X[feature] = X[feature].astype(bool)
-                self.semantics[feature] = ['boolean', feature, feature_index]
+                self.semantics[feature] = ['boolean', feature]
         if len(categorical) > 0:
             bool_X = self._booleanize_categorical_features(bool_X, categorical)
         if len(numerical) > 0:
             bool_X = self._booleanize_numerical_features(bool_X, y, numerical, silent)
+
+        # Store indexes for features for numpy-operations.
+        for key, value in self.semantics.items():
+            updated_value = value + [X.columns.get_loc(value[1])]
+            self.semantics[key] = updated_value
+
         self.X = bool_X
         self.y = y
         self.is_initialized = True
