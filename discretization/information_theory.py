@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 
 def entropy_logarithm(p : float) -> float:
@@ -25,15 +24,16 @@ def entropy(p : list) -> float:
     """
     return np.sum([entropy_logarithm(prob) for prob in p])
 
-def information(y : pd.Series) -> float:
+def information(y : np.ndarray) -> float:
     """
     Calculates the information content of the target variable `y`.
 
     Args:
-        y (pandas.Series): A Pandas Series representing the target variable whose entropy is to be calculated.
+        y (np.ndarray): A Pandas Series representing the target variable whose entropy is to be calculated.
 
     Returns:
         float: The computed entropy (information content) for the target variable `y`.
     """
-    class_counts = y.value_counts(normalize=True)
-    return entropy(class_counts)
+    _, counts = np.unique(y, return_counts=True)
+    probabilities = counts / counts.sum()
+    return entropy(probabilities)
