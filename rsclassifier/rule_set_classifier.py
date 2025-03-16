@@ -126,24 +126,6 @@ class RuleSetClassifier:
         if not silent:
             print(f'Total number of Boolean features: {len(self.X.columns)}')
 
-    def _get_type(self, row : pd.Series) -> list:
-        """
-        Convert a row into a list of literals representing its type.
-
-        Args:
-            row (pandas.Series): A row of feature data.
-
-        Returns:
-            list: A list of literals representing the type.
-        """
-        type = []
-        for atom in row.keys():
-            if row[atom] == True:
-                type.append([1, atom])
-            else:
-                type.append([0, atom])
-        return type
-
     def _form_rule_set(self, features : list, default_prediction : Any, silent : bool) -> None:
         """
         Form a set of rules based on the data.
@@ -154,43 +136,37 @@ class RuleSetClassifier:
             silent (bool): Whether to suppress output.
         """
         self.rules = []
-        local_X = self.X_grow[features]
+    
+        # Convert DataFrame to NumPy array
+        local_X_np = self.X_grow[features].to_numpy()
+        y_np = self.y_grow.to_numpy()
         
-        # Track unique types and scores for each type.
-        types = []
-        type_scores = {}
-        unique_y = list(self.y.unique())
+        # Track unique "types" (feature value combinations)
+        unique_types, inverse_indices = np.unique(local_X_np, axis=0, return_inverse=True)
+        
+        # Count occurrences of each (type, y) pair
+        unique_y = np.unique(y_np)
+        type_scores = np.zeros((len(unique_types), len(unique_y)))
 
-        for index, row in tqdm(local_X.iterrows(), total=len(local_X), desc='Calculating probabilities...', disable=silent):
-            # Convert row into a "type".
-            type = self._get_type(row)
-            type_code = hash(str(type))
-            if type_code not in type_scores:
-                types.append(type)
-                type_scores[type_code] = {v: 0 for v in unique_y}
-            # Increment score for the correct label.
-            type_scores[type_code][self.y_grow.loc[index]] += 1
+        for i in tqdm(range(len(y_np)), desc='Calculating probabilities...', disable=silent):
+            type_scores[inverse_indices[i], np.where(unique_y == y_np[i])[0][0]] += 1
 
-        # Determine the default prediction if not specified.
+        # Determine default prediction if not given
         if default_prediction is None:
-            self.default_prediction = self.y.value_counts().idxmax()
+            self.default_prediction = self.y_grow.mode()[0]
         else:
             self.default_prediction = default_prediction
-        unique_y.remove(self.default_prediction)
 
-        rules = {v: [] for v in unique_y}
+        # Generate rules
+        rules = {y: [] for y in unique_y if y != self.default_prediction}
 
-        # Form rules based on the types.
-        for type in tqdm(types, total=len(types), desc='Forming the classifier...', disable=silent):
-            type_code = hash(str(type))
-            output = max(type_scores[type_code], key=type_scores[type_code].get)
-            if output != self.default_prediction:
-                rules[output].append(type)
+        for i in tqdm(range(len(unique_types)), desc='Forming the classifier...', disable=silent):
+            best_y = unique_y[np.argmax(type_scores[i])]
+            if best_y != self.default_prediction:
+                rules[best_y].append(unique_types[i])
 
-        # Remove empty rules.
-        rules = {k: v for k, v in rules.items() if v}
-        
-        self.rules = list(rules.items())  # Store the rules.
+        # Remove empty rule lists
+        self.rules = [(key, [list(zip(rule,features)) for rule in value]) for key, value in rules.items() if value]
 
     def _prune_terms_using_domain_knowledge(self, terms : list) -> list:
         """
