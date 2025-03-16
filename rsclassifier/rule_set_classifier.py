@@ -114,7 +114,8 @@ class RuleSetClassifier:
         bool_X = X.copy()
         if len(boolean) > 0:
             for feature in boolean:
-                feature_index = bool_X.get_loc(feature)
+                feature_index = bool_X.columns.get_loc(feature)
+                bool_X[feature] = X[feature].astype(bool)
                 self.semantics[feature] = ['boolean', feature, feature_index]
         if len(categorical) > 0:
             bool_X = self._booleanize_categorical_features(bool_X, categorical)
