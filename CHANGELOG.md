@@ -1,5 +1,9 @@
 # Changelog
 
+# v1.5.2 - (3/17/2025)
+### Bugfix
+- Fixed a bug in entropy based discretization.
+
 # v1.5.2 - (3/15/2025)
 ### Changes
 - Significant improvements in the performance of learning, discretization, evaluation and pruning.

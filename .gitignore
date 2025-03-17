@@ -10,3 +10,4 @@ pyproject.toml
 setup.py
 changes.txt
 /experiments
+upload.bat

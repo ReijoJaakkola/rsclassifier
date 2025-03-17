@@ -87,11 +87,11 @@ def find_pivots(x: pd.Series, y: pd.Series) -> List[float]:
     Returns:
         list: List of pivot points that yield significant information gain.
     """
-    x, y = x.to_numpy(x), y.to_numpy(y)
-    z = np.column_stack((x, y))
+    x_np, y_np = x.to_numpy(copy = True), y.to_numpy(copy = True)
+    z = np.column_stack((x_np, y_np))
     z = z[np.argsort(z[:, 0])]
     
-    information_upper_bound = np.log2(len(np.unique(y))) + 1
+    information_upper_bound = np.log2(len(np.unique(y_np))) + 1
     pivots = []
     stack = [z]
     
