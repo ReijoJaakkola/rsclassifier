@@ -7,7 +7,7 @@
 
 # Overview
 
-This package consists of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm, while the second one implements an entropy-based supervised discretization algorithm and a class for booleanizing data.
+This package consists of two modules, `rsclassifier` and `discretization`. The first one implements a rule-based machine learning algorithm that is fully compatible with scikit-learn, while the second one implements an entropy-based supervised discretization algorithm and a class for booleanizing data.
 
 # Installation
 
@@ -19,7 +19,7 @@ pip install rsclassifier
 
 # First module: rsclassifier
 
-This module contains the class `RuleSetClassifier`, which is a non-parametric supervised learning method that can be used for classification and data mining. As the name suggests, `RuleSetClassifier` produces classifiers which consist of a set of rules which are learned from the given data. As a concrete example, the following classifier was produced from the well-known Iris data set.
+This module contains the class `RuleSetClassifier`, which is a **scikit-learn compatible** non-parametric supervised learning method that can be used for classification and data mining. As the name suggests, `RuleSetClassifier` produces classifiers which consist of a set of rules which are learned from the given data. As a concrete example, the following classifier was produced from the well-known Iris data set.
 
 **IF**  
 **(petal_length_in_cm > 2.45 AND petal_width_in_cm > 1.75) {support: 33, confidence: 0.97}**  
@@ -46,69 +46,234 @@ This classifier classifies all tumors which satisfy one of the four rules listed
 
 ### Advantages
 - `RuleSetClassifier` produces extremely interpretable and transparent classifiers.
-- It is very easy to use, as it has only one main hyperparameter `num_prop`.
+- **Fully compatible with scikit-learn**: Works seamlessly with pipelines, cross-validation, grid search, and all sklearn utilities.
+- It is very easy to use, with intuitive hyperparameters.
 - It can handle both categorical and numerical data.
 - The learning process is very fast.
+- **Works with pandas DataFrames and Series** for proper feature name handling.
+
+### Requirements
+- **Input format**: `RuleSetClassifier` requires pandas DataFrame for features (X) and pandas Series for labels (y). This ensures proper handling of feature names for categorical, numerical, and boolean feature processing.
+- **No missing values**: The classifier does not support missing values. Please preprocess your data (e.g., imputation or removal) before fitting.
 
 ### How to use RuleSetClassifier
 
-Let `rsc` be an instance of `RuleSetClassifier`, `X` be a pandas dataframe (input features) and `y` a pandas series (target labels).
-- **Load the data**: Use `rsc.load_data(X, y, boolean, categorical, numerical)` where `boolean`, `categorical` and `numerical` are (possibly empty) lists specifying which features in `X` are boolean, categorical or numerical, respectively. This function converts the data into a Boolean form for rule learning and store it in `rsc`.
-- **Fit the classifier**: After loading the data, call `rsc.fit(num_prop, fs_algorithm, growth_size)`. Note that unlike in scikit-learn, this function doesn't take `X` and `y` directly as arguments; they are loaded beforehand as part of `load_data`. The hyperparameters `num_prop`, `fs_algorithm` and `growth_size` work as follows.
-    - `num_prop` is an upper bound on the number of proposition symbols allowed in the rules. The smaller `num_prop` is, the more interpretable the models are. The downside of having small `num_prop` is of course that the resulting model has low accuracy (i.e., it underfits), so an optimal value for `num_prop` is the one which strikes a balance between interpretability and accuracy.
-    - `fs_algorithm` determines the algorithm used for selecting the Boolean features used by the classifier. It has two options: `dt` (which is the default) and `brute`. `dt` uses decision trees for feature selection, `brute` finds the set of features for which the error on training data is minimized. Note that running `brute` with a large `num_prop` can take a long time.
-    - `growth_size` is a float in the range (0, 1], determining the proportion of X used for learning rules. The remaining portion is used for pruning. If `growth_size` is set to 1, which is the default value, no pruning is performed. Also 2/3 seems to work well in practice.
-- **Make predictions**: Use `rsc.predict(X)` to generate predictions. This function returns a pandas Series.
-- **Visualize the classifier**: Simply print the classifier to visualize the learned rules (together with their support and confidence).
+`RuleSetClassifier` follows the standard scikit-learn API, making it easy to integrate into existing ML workflows.
 
-**Note**: At present, `RuleSetClassifier` does not support datasets with missing values. You will need to preprocess your data (e.g., removing missing values) before using the classifier.
+#### Basic Usage
+
+```python
+from rsclassifier import RuleSetClassifier
+
+# Initialize the classifier with feature types
+clf = RuleSetClassifier(
+    num_prop=10,                              # Maximum number of features to use
+    numerical_features=['feature1', 'feature2'],  # List of numerical features
+    categorical_features=['feature3'],            # List of categorical features
+    boolean_features=['feature4'],                # List of boolean features
+    fs_algorithm='dt',                            # Feature selection: 'dt' or 'brute'
+    growth_size=0.67,                             # Proportion for rule growth (training)
+    random_state=42,                              # For reproducibility
+    silent=False                                  # Show progress
+)
+
+# Fit the classifier (just like any sklearn estimator)
+clf.fit(X_train, y_train)
+
+# Make predictions
+y_pred = clf.predict(X_test)
+
+# Display the learned rules
+print(clf)
+```
+
+#### Hyperparameters
+
+- **`num_prop`** (required): Maximum number of Boolean features to use in rules. Smaller values produce more interpretable models but may underfit. Balance interpretability with accuracy.
+
+- **`fs_algorithm`** (default='dt'): Algorithm for feature selection:
+  - `'dt'`: Uses decision trees (fast, recommended)
+  - `'brute'`: Brute force search minimizing training error (can be slow for large `num_prop`)
+
+- **`growth_size`** (default=1.0): Proportion of data used for rule learning, in range (0, 1]. The remaining data is used for rule pruning. 
+  - `1.0`: No pruning (uses all data for learning)
+  - `0.67`: Common choice, uses 2/3 for learning, 1/3 for pruning
+
+- **`random_state`** (default=42): Controls shuffling for train/prune split.
+
+- **`default_prediction`** (default=None): Prediction when no rule matches. If None, uses the mode of training data.
+
+- **`numerical_features`** (default=[]): List of numerical feature names.
+
+- **`categorical_features`** (default=[]): List of categorical feature names.
+
+- **`boolean_features`** (default=[]): List of boolean feature names.
+
+- **`silent`** (default=False): If True, suppresses progress output.
+
+#### Scikit-learn Integration
+
+`RuleSetClassifier` works with all standard scikit-learn tools:
+
+```python
+from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+# Cross-validation
+scores = cross_val_score(clf, X, y, cv=5)
+print(f"CV Accuracy: {scores.mean():.3f} (+/- {scores.std():.3f})")
+
+# Grid search for hyperparameter tuning
+param_grid = {
+    'num_prop': [5, 10, 15, 20],
+    'growth_size': [0.67, 0.8, 1.0],
+    'fs_algorithm': ['dt', 'brute']
+}
+grid_search = GridSearchCV(clf, param_grid, cv=5, scoring='accuracy')
+grid_search.fit(X_train, y_train)
+print(f"Best parameters: {grid_search.best_params_}")
+
+# Use in pipelines
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('classifier', clf)
+])
+pipeline.fit(X_train, y_train)
+```
+
+#### Model Persistence
+
+`RuleSetClassifier` supports multiple methods for saving and loading models:
+
+```python
+import joblib
+
+# Method 1: Using joblib (recommended for production)
+joblib.dump(clf, 'model.pkl')
+clf_loaded = joblib.load('model.pkl')
+
+# Method 2: Using built-in save/load methods
+clf.save_model('model.pkl')
+clf_loaded = RuleSetClassifier.load_model('model.pkl')
+
+# Method 3: Using standard pickle
+import pickle
+with open('model.pkl', 'wb') as f:
+    pickle.dump(clf, f)
+with open('model.pkl', 'rb') as f:
+    clf_loaded = pickle.load(f)
+
+# Export rules in human-readable format
+clf.save_rules_as_text('rules.txt')
+
+# Export rules as JSON for programmatic access
+clf.save_rules_as_json('rules.json')
+```
+
+The JSON export includes complete rule information with support and confidence metrics, making it easy to integrate learned rules into other systems or for documentation purposes.
+
+**Note**: At present, `RuleSetClassifier` does not support datasets with missing values. You will need to preprocess your data (e.g., imputing or removing missing values) before using the classifier.
 
 ### Background
 
 The rule learning method implemented by `RuleSetClassifier` was inspired by and extends the approach taken in the [paper](https://arxiv.org/abs/2402.05680), which we refer to here as the **ideal DNF-method**. The ideal DNF-method goes as follows. First, the input data is Booleanized. Then, a small number of promising features is selected. Finally, a DNF-formula is computed for those promising features for which the number of misclassified points is as small as possible.
 
-The way `RuleSetClassifier` extends and modifies the ideal DNF-method is primarily as follows.
+The way `RuleSetClassifier` extends and modifies the ideal DNF-method is primarily as follows:
 - We use an entropy-based Booleanization for numerical features with minimum description length principle working as a stopping rule.
 - `RuleSetClassifier` is not restricted to binary classification tasks.
 - We use the Quine-McCluskey algorithm for finding near-optimal size DNF-formulas.
-- We also implement rule pruning as a postprocessing step. This is important because it makes the rules shorter and hence more interpretable.
+- We also implement rule pruning as a postprocessing step. This makes the rules shorter and more interpretable.
 
-### Example
+### Complete Example
 
 ```python
 import pandas as pd
 from sklearn import datasets
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from rsclassifier import RuleSetClassifier
+import joblib
 
-# Load the data set.
+# Load the data set
 iris = datasets.load_iris()
-df = pd.DataFrame(data= iris.data, columns= iris.feature_names)
-df['target'] = iris.target
+X = pd.DataFrame(data=iris.data, columns=iris.feature_names)
+y = pd.Series(iris.target)
 
-# Split it into train and test.
-X = df.drop(columns = ['target'], axis = 1)
-y = df['target']
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size = 0.8)
+# Split into train and test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, train_size=0.8, random_state=42
+)
 
-# Initialize RuleSetClassifier.
-rsc = RuleSetClassifier()
-# All the features of iris.csv are numerical.
-rsc.load_data(X = X_train, y = y_train, numerical = X.columns)
-# Fit the classifier with a maximum of 2 proposition symbols.
-rsc.fit(num_prop = 2)
+# Initialize RuleSetClassifier
+# All features in iris are numerical
+clf = RuleSetClassifier(
+    num_prop=2,                          # Use maximum 2 features
+    numerical_features=X.columns.tolist(),  # All features are numerical
+    growth_size=0.67,                    # Use 2/3 for learning, 1/3 for pruning
+    random_state=42
+)
 
-# Measure the accuracy of the resulting classifier.
-train_accuracy = accuracy_score(rsc.predict(X_train), y_train)
-test_accuracy = accuracy_score(rsc.predict(X_test), y_test)
+# Fit the classifier
+clf.fit(X_train, y_train)
 
-# Display the classifier and its accuracies.
-print()
-print(rsc)
-print(f'Rule set classifier training accuracy: {train_accuracy}')
-print(f'Rule set classifier test accuracy: {test_accuracy}')
+# Make predictions
+y_train_pred = clf.predict(X_train)
+y_test_pred = clf.predict(X_test)
+
+# Measure accuracy
+train_accuracy = accuracy_score(y_train, y_train_pred)
+test_accuracy = accuracy_score(y_test, y_test_pred)
+
+# Display results
+print("\n" + "="*60)
+print("LEARNED RULE SET")
+print("="*60)
+print(clf)
+print("\n" + "="*60)
+print("PERFORMANCE METRICS")
+print("="*60)
+print(f'Training accuracy: {train_accuracy:.3f}')
+print(f'Test accuracy: {test_accuracy:.3f}')
+print("\nClassification Report:")
+print(classification_report(y_test, y_test_pred))
+
+# Save the model for later use
+clf.save_model('iris_classifier.pkl')
+clf.save_rules_as_text('iris_rules.txt')
+clf.save_rules_as_json('iris_rules.json')
+
+# Load and use the saved model
+clf_loaded = RuleSetClassifier.load_model('iris_classifier.pkl')
+y_pred_loaded = clf_loaded.predict(X_test)
+print(f"\nLoaded model accuracy: {accuracy_score(y_test, y_pred_loaded):.3f}")
 ```
+
+### Migration from Previous Versions
+
+If you're upgrading from an earlier version of `rsclassifier`, here's how to update your code:
+
+**Old API:**
+```python
+rsc = RuleSetClassifier()
+rsc.load_data(X=X_train, y=y_train, numerical=X.columns)
+rsc.fit(num_prop=2)
+```
+
+**New API (sklearn-compatible):**
+```python
+rsc = RuleSetClassifier(
+    num_prop=2,
+    numerical_features=X.columns.tolist()
+)
+rsc.fit(X_train, y_train)
+```
+
+Key changes:
+- Feature types are now specified in the constructor, not in a separate `load_data()` method
+- `fit()` now takes `X` and `y` directly (standard sklearn pattern)
+- All hyperparameters are set in `__init__()`
+- The classifier now extends `BaseEstimator` and `ClassifierMixin` from sklearn
 
 # Second module: discretization
 
@@ -155,7 +320,7 @@ The `Booleanizer` class is designed to transform a dataset into a booleanized fo
 Let `booleanizer` be an instance of `Booleanizer`, `X` a pandas dataframe (input features) and `y` a pandas series (target labels).
 - **Collect unique values for categorical features:** For categorical features we need to store the unique values (or classes) in each categorical feature. This step is done by calling the `store_classes_for_cat_features` method.
 - **Learn pivots for numerical features:** For the numerical features, `Booleanizer` uses entropy-based discretization to learn pivot points which it will then store. This step is done using the `store_pivots_for_num_features` method.
-- **Booleanize the data:** After storing the categories for categorical features and the pivot points for numerical features, the data can be booleanized using the `booleanize_dataframe method`.
+- **Booleanize the data:** After storing the categories for categorical features and the pivot points for numerical features, the data can be booleanized using the `booleanize_dataframe` method.
 
 Note that a single instance of `Booleanizer` can be used to booleanize several different datasets. In particular, a `Booleanizer` trained on the training data can be used to booleanize the test data.
 
@@ -166,21 +331,44 @@ from sklearn import datasets
 from sklearn.model_selection import train_test_split
 from discretization import Booleanizer
 
-# Load the data.
+# Load the data
 iris = datasets.load_iris()
 X = pd.DataFrame(data=iris.data, columns=iris.feature_names)
 y = pd.Series(iris.target)
 
-# Split data into train and test sets.
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-# Initialize the booleanizer.
+# Initialize the booleanizer
 booleanizer = Booleanizer()
 
-# Learn pivots from the training data.
+# Learn pivots from the training data
 booleanizer.store_pivots_for_num_features(X_train, y_train, X.columns)
 
-# Booleanize the training data and the test data using the same pivots.
+# Booleanize the training data and the test data using the same pivots
 X_train_bool = booleanizer.booleanize_dataframe(X_train)
 X_test_bool = booleanizer.booleanize_dataframe(X_test)
+```
+
+# Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+# License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+# Citation
+
+If you use this package in your research, please cite:
+
+```bibtex
+@software{rsclassifier,
+  author = {Jaakkola, Reijo},
+  title = {rsclassifier: Rule-based Classification with Scikit-learn Compatibility},
+  year = {2024},
+  url = {https://github.com/ReijoJaakkola/rsclassifier}
+}
 ```

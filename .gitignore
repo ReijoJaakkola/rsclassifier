@@ -3,11 +3,7 @@ testpypi_TOKEN.txt
 pypi_TOKEN.txt
 dist/
 rsclassifier.egg-info/
-pyproject.toml
 build/
 datasets/
-pyproject.toml
-setup.py
 changes.txt
 /experiments
-upload.bat

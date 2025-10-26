@@ -1,0 +1,29 @@
+[project]
+name = "rsclassifier"
+version = "2.0.0"
+authors = [
+  { name = "Reijo Jaakkola", email = "jaakkolareijo@hotmail.com" },
+]
+license = { text = "MIT" }
+description = "Package for training rule set classifiers for tabular data."
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scipy",
+    "tqdm"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+homepage = "https://github.com/ReijoJaakkola/rsclassifier"
