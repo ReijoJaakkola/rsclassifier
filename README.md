@@ -50,7 +50,6 @@ This classifier classifies all tumors which satisfy one of the four rules listed
 - It is very easy to use, with intuitive hyperparameters.
 - It can handle both categorical and numerical data.
 - The learning process is very fast.
-- **Works with pandas DataFrames and Series** for proper feature name handling.
 
 ### Requirements
 - **Input format**: `RuleSetClassifier` requires pandas DataFrame for features (X) and pandas Series for labels (y). This ensures proper handling of feature names for categorical, numerical, and boolean feature processing.
@@ -67,14 +66,15 @@ from rsclassifier import RuleSetClassifier
 
 # Initialize the classifier with feature types
 clf = RuleSetClassifier(
-    num_prop=10,                              # Maximum number of features to use
+    num_prop=10,                                  # Maximum number of features to use
     numerical_features=['feature1', 'feature2'],  # List of numerical features
     categorical_features=['feature3'],            # List of categorical features
     boolean_features=['feature4'],                # List of boolean features
     fs_algorithm='dt',                            # Feature selection: 'dt' or 'brute'
     growth_size=0.67,                             # Proportion for rule growth (training)
     random_state=42,                              # For reproducibility
-    silent=False                                  # Show progress
+    silent=False,                                 # Show progress
+    weights={'class1':1,'class2':1}               # Class weights.
 )
 
 # Fit the classifier (just like any sklearn estimator)
@@ -110,6 +110,8 @@ print(clf)
 - **`boolean_features`** (default=[]): List of boolean feature names.
 
 - **`silent`** (default=False): If True, suppresses progress output.
+
+- **`weights`** (default=None): Weights associated with classes. If None, all classes have weight one.
 
 #### Scikit-learn Integration
 
@@ -193,7 +195,6 @@ from sklearn import datasets
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from rsclassifier import RuleSetClassifier
-import joblib
 
 # Load the data set
 iris = datasets.load_iris()

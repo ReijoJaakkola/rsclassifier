@@ -1,6 +1,10 @@
 # Changelog
 
-## v2.0.0 - (TBD)
+# v2.0.1 - (10/29/2025)
+### Added
+- **Class weights**: `RuleSetClassifier` has a new parameter `weights` that allows specifying per-class weighting to handle class imbalance. Default is None, which assigns equal weight to all classes.
+
+## v2.0.0 - (10/26/2025)
 ### Breaking Changes
 - **Strict pandas requirement**: `RuleSetClassifier` now requires pandas DataFrame for X and pandas Series for y. NumPy arrays are no longer automatically converted. This ensures proper feature name handling for categorical, numerical, and boolean features.
 - **sklearn-compatible API**: Complete redesign to follow scikit-learn conventions:

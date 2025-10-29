@@ -59,6 +59,9 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
     
     silent : bool, default=False
         If True, suppresses progress output during training.
+
+    weights : dict, default=None
+        Weights associated with classes in the form {class_label: weight}. If None, all classes are supposed to have weight one.
     
     Attributes
     ----------
@@ -110,27 +113,29 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         boolean_features: List[str] = None,
         categorical_features: List[str] = None,
         numerical_features: List[str] = None,
-        silent: bool = False
+        silent: bool = False,
+        weights: dict = None
     ):
-        self.num_prop = num_prop
-        self.fs_algorithm = fs_algorithm
-        self.growth_size = growth_size
-        self.random_state = random_state
-        self.default_prediction = default_prediction
-        self.boolean_features = boolean_features or []
-        self.categorical_features = categorical_features or []
-        self.numerical_features = numerical_features or []
-        self.silent = silent
+        self.num_prop_ = num_prop
+        self.fs_algorithm_ = fs_algorithm
+        self.growth_size_ = growth_size
+        self.random_state_ = random_state
+        self.default_prediction_ = default_prediction
+        self.boolean_features_ = boolean_features or []
+        self.categorical_features_ = categorical_features or []
+        self.numerical_features_ = numerical_features or []
+        self.silent_ = silent
+        self.weights_ = weights
 
     def _validate_hyperparameters(self):
         """Validate hyperparameters before fitting."""
-        if self.growth_size <= 0.0 or self.growth_size > 1.0:
+        if self.growth_size_ <= 0.0 or self.growth_size_ > 1.0:
             raise ValueError('growth_size must be in range (0, 1]')
         
-        if self.fs_algorithm not in ['dt', 'brute']:
+        if self.fs_algorithm_ not in ['dt', 'brute']:
             raise ValueError("fs_algorithm must be 'dt' or 'brute'")
         
-        if self.num_prop <= 0:
+        if self.num_prop_ <= 0:
             raise ValueError('num_prop must be positive')
 
     def _booleanize_categorical_features(
@@ -160,7 +165,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         """Discretize numerical features using entropy-based pivots."""
         local_X = X.copy()
         desc = 'Discretizing numerical features...'
-        for feature in tqdm(numerical_features, desc=desc, disable=self.silent):
+        for feature in tqdm(numerical_features, desc=desc, disable=self.silent_):
             pivots = find_pivots(local_X[feature], y)
             if len(pivots) == 0:
                 continue
@@ -182,21 +187,21 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         bool_X = X.copy()
         
         # Handle boolean features
-        if len(self.boolean_features) > 0:
-            for feature in self.boolean_features:
+        if len(self.boolean_features_) > 0:
+            for feature in self.boolean_features_:
                 bool_X[feature] = X[feature].astype(bool)
                 self.semantics_[feature] = ['boolean', feature]
         
         # Handle categorical features
-        if len(self.categorical_features) > 0:
+        if len(self.categorical_features_) > 0:
             bool_X = self._booleanize_categorical_features(
-                bool_X, self.categorical_features
+                bool_X, self.categorical_features_
             )
         
         # Handle numerical features
-        if len(self.numerical_features) > 0:
+        if len(self.numerical_features_) > 0:
             bool_X = self._booleanize_numerical_features(
-                bool_X, y, self.numerical_features
+                bool_X, y, self.numerical_features_
             )
 
         # Store feature indices for numpy operations
@@ -204,7 +209,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
             feature_idx = X.columns.get_loc(value[1])
             self.semantics_[key] = value + [feature_idx]
 
-        if not self.silent:
+        if not self.silent_:
             print(f'Total Boolean features: {len(bool_X.columns)}')
 
         return bool_X
@@ -230,24 +235,30 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         unique_y = np.unique(y_np)
         type_scores = np.zeros((len(unique_types), len(unique_y)))
 
+        if self.weights_ is None:
+            self.weights_ = {y: 1 for y in unique_y}
+
         desc = 'Calculating probabilities...'
-        for i in tqdm(range(len(y_np)), desc=desc, disable=self.silent):
+        for i in tqdm(range(len(y_np)), desc=desc, disable=self.silent_):
             y_idx = np.where(unique_y == y_np[i])[0][0]
             type_scores[inverse_indices[i], y_idx] += 1
 
+        for j, y in enumerate(unique_y):
+            type_scores[:, j] *= self.weights_[y]
+
         # Determine default prediction
         if default_prediction is None:
-            self.default_prediction_ = self.y_grow_.mode()[0]
+            self.default_prediction__ = self.y_grow_.mode()[0]
         else:
-            self.default_prediction_ = default_prediction
+            self.default_prediction__ = default_prediction
 
         # Generate rules
-        rules = {y: [] for y in unique_y if y != self.default_prediction_}
+        rules = {y: [] for y in unique_y if y != self.default_prediction__}
 
         desc = 'Forming the classifier...'
-        for i in tqdm(range(len(unique_types)), desc=desc, disable=self.silent):
+        for i in tqdm(range(len(unique_types)), desc=desc, disable=self.silent_):
             best_y = unique_y[np.argmax(type_scores[i])]
-            if best_y != self.default_prediction_:
+            if best_y != self.default_prediction__:
                 rules[best_y].append(unique_types[i])
 
         # Convert to final format
@@ -327,7 +338,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         pruned_terms = []
         desc = f'Pruning terms for class {prediction}...'
         
-        for term in tqdm(terms, desc=desc, disable=self.silent):
+        for term in tqdm(terms, desc=desc, disable=self.silent_):
             local_term = term.copy()
             while True:
                 old_score = self._evaluate_term_accuracy(
@@ -361,7 +372,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         pruned_terms = []
         desc = f'Cross-validation pruning for class {prediction}...'
         
-        for term in tqdm(terms, desc=desc, disable=self.silent):
+        for term in tqdm(terms, desc=desc, disable=self.silent_):
             local_term = term.copy()
             while True:
                 best_score = self._evaluate_term_accuracy(
@@ -502,9 +513,9 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError("X and y must contain at least one sample")
         
         # Validate that specified feature names exist in X
-        all_specified_features = set(self.boolean_features + 
-                                     self.categorical_features + 
-                                     self.numerical_features)
+        all_specified_features = set(self.boolean_features_ + 
+                                     self.categorical_features_ + 
+                                     self.numerical_features_)
         existing_features = set(X.columns)
         missing_features = all_specified_features - existing_features
         
@@ -526,28 +537,28 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         bool_X = self._preprocess_data(X, y)
         
         # Adjust num_prop if needed
-        num_prop = min(self.num_prop, len(bool_X.columns))
-        if num_prop < self.num_prop and not self.silent:
-            print(f'WARNING: Using {num_prop} features (requested {self.num_prop})')
+        num_prop = min(self.num_prop_, len(bool_X.columns))
+        if num_prop < self.num_prop_ and not self.silent_:
+            print(f'WARNING: Using {num_prop} features (requested {self.num_prop_})')
         
         # Feature selection
-        if self.fs_algorithm == 'dt':
+        if self.fs_algorithm_ == 'dt':
             used_props = feature_selection_using_decision_tree(bool_X, y, num_prop)
         else:  # brute
             used_props = feature_selection_using_brute_force(
-                bool_X, y, num_prop, self.silent
+                bool_X, y, num_prop, self.silent_
             )
         
         # Split data for growth and pruning
-        if self.growth_size == 1.0:
+        if self.growth_size_ == 1.0:
             self.X_grow_ = bool_X
             self.X_prune_ = None
             self.y_grow_ = y
             self.y_prune_ = None
         else:
             X_grow, X_prune, y_grow, y_prune = train_test_split(
-                bool_X, y, train_size=self.growth_size, 
-                random_state=self.random_state
+                bool_X, y, train_size=self.growth_size_, 
+                random_state=self.random_state_
             )
             self.X_grow_ = X_grow
             self.X_prune_ = X_prune
@@ -555,7 +566,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
             self.y_prune_ = y_prune
         
         # Form and simplify rules
-        self._form_rule_set(used_props, self.default_prediction)
+        self._form_rule_set(used_props, self.default_prediction_)
         self._simplify_rules()
         
         return self
@@ -600,7 +611,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
                 )
             
             extra_features = set(X.columns) - set(self.feature_names_in_)
-            if extra_features and not self.silent:
+            if extra_features and not self.silent_:
                 print(f"WARNING: X contains extra features that will be ignored: "
                       f"{sorted(extra_features)}")
             
@@ -616,7 +627,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         
         X_np = X.to_numpy()
         num_samples = X_np.shape[0]
-        predictions = np.full(num_samples, self.default_prediction_)
+        predictions = np.full(num_samples, self.default_prediction__)
         
         for rule in self.rules_:
             output = rule[0]
@@ -709,7 +720,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
             
             output.append(f'THEN {prediction}')
         
-        output.append(f'ELSE {self.default_prediction_}')
+        output.append(f'ELSE {self.default_prediction__}')
         return '\n'.join(output)
 
     def __getstate__(self) -> Dict:
@@ -822,7 +833,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         with open(filepath, 'wb') as f:
             pickle.dump(self, f)
         
-        if not self.silent:
+        if not self.silent_:
             print(f"Model saved to {filepath}")
 
     @staticmethod
@@ -883,7 +894,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         with open(filepath, 'w') as f:
             f.write(str(self))
         
-        if not self.silent:
+        if not self.silent_:
             print(f"Rules saved to {filepath}")
 
     def save_rules_as_json(self, filepath: Union[str, Path]) -> None:
@@ -948,15 +959,15 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         json_data = {
             'model_type': 'RuleSetClassifier',
             'hyperparameters': {
-                'num_prop': self.num_prop,
-                'fs_algorithm': self.fs_algorithm,
-                'growth_size': self.growth_size,
-                'random_state': self.random_state
+                'num_prop': self.num_prop_,
+                'fs_algorithm': self.fs_algorithm_,
+                'growth_size': self.growth_size_,
+                'random_state': self.random_state_
             },
             'classes': [str(c) for c in self.classes_],
             'n_features': int(self.n_features_in_),
             'feature_names': list(self.feature_names_in_) if hasattr(self, 'feature_names_in_') else None,
-            'default_prediction': str(self.default_prediction_),
+            'default_prediction': str(self.default_prediction__),
             'rules': json_rules,
             'semantics': {k: v for k, v in self.semantics_.items()}
         }
@@ -965,7 +976,7 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
         with open(filepath, 'w') as f:
             json.dump(json_data, f, indent=2)
         
-        if not self.silent:
+        if not self.silent_:
             print(f"Rules saved to {filepath}")
 
     def get_params(self, deep: bool = True) -> Dict:
@@ -987,15 +998,15 @@ class RuleSetClassifier(BaseEstimator, ClassifierMixin):
             Parameter names mapped to their values.
         """
         return {
-            'num_prop': self.num_prop,
-            'fs_algorithm': self.fs_algorithm,
-            'growth_size': self.growth_size,
-            'random_state': self.random_state,
-            'default_prediction': self.default_prediction,
-            'boolean_features': self.boolean_features,
-            'categorical_features': self.categorical_features,
-            'numerical_features': self.numerical_features,
-            'silent': self.silent
+            'num_prop': self.num_prop_,
+            'fs_algorithm': self.fs_algorithm_,
+            'growth_size': self.growth_size_,
+            'random_state': self.random_state_,
+            'default_prediction': self.default_prediction_,
+            'boolean_features': self.boolean_features_,
+            'categorical_features': self.categorical_features_,
+            'numerical_features': self.numerical_features_,
+            'silent': self.silent_
         }
 
     def set_params(self, **params) -> 'RuleSetClassifier':
